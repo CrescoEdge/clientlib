@@ -27,10 +27,10 @@ public class WSInterface
 
     }
 
-    public boolean connect() {
+    public boolean connect(String host, int port) {
 
         //String url = "wss://qa.sockets.stackexchange.com/";
-        String url = "ws://localhost:8282/api/apisocket";
+        String url = "ws://" + host + ":" + 8282 + "/api/apisocket";
 
         //SslContextFactory ssl = new SslContextFactory.Client();
         //ssl.setEndpointIdentificationAlgorithm("HTTPS");

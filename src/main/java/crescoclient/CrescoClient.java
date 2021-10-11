@@ -36,7 +36,7 @@ public class CrescoClient {
      * @return true
      */
     public boolean connect() {
-        ws_interface.connect();
+        ws_interface.connect(host, port);
         return true;
     }
 
