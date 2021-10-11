@@ -16,8 +16,8 @@ jobs:
       - name: print env
         run: export
         env:
-           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+           SONATYPE_PASSWORD: '${{ secrets.SONATYPE_PASSWORD }}'
+           SONATYPE_USERNAME: '${{ secrets.SONATYPE_USERNAME }}'
       #- name: Build with Maven
       #  run: mvn clean package
       #- name: Deploy to Maven
