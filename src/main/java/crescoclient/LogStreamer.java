@@ -13,15 +13,15 @@ import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
 
 @WebSocket
-public class WSInterface
+public class LogStreamer
 {
-    private final Logger LOG = Log.getLogger(WSInterface.class);
+    private final Logger LOG = Log.getLogger(LogStreamer.class);
     private HttpClient http;
     private WebSocketClient client;
     private Session session;
     private SynchronousQueue<String> messageQueue;
 
-    public WSInterface() {
+    public LogStreamer() {
 
         messageQueue = new SynchronousQueue<>();
 
@@ -30,6 +30,7 @@ public class WSInterface
     public boolean connect(String host, int port) {
 
         //String url = "wss://qa.sockets.stackexchange.com/";
+        //String url = "ws://localhost:8282/api/apisocket";
         String url = "ws://" + host + ":" + port + "/api/apisocket";
 
         //SslContextFactory ssl = new SslContextFactory.Client();
