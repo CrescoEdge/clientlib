@@ -55,7 +55,6 @@ public class LogStreamer
             //session.getRemote().sendString("Hello");
             //session.getRemote().sendString("155-questions-active");
 
-
         }
         catch (Throwable t)
         {
