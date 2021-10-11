@@ -15,7 +15,7 @@ jobs:
           distribution: 'adopt'
       - name: print env
         run: echo $SONATYPE_USERNAME
-          env:
+        env:
            SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
            SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
       #- name: Build with Maven
