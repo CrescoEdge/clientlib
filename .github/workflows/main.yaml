@@ -13,14 +13,14 @@ jobs:
         with:
           java-version: '8'
           distribution: 'adopt'
-      - name: Build with Maven
-        run: mvn clean package
+      #- name: Build with Maven
+      #  run: mvn clean package
       - name: Nexus Repo Publish
         uses: sonatype-nexus-community/nexus-repo-github-action@master
         with:
             serverUrl: https://oss.sonatype.org/content/repositories/snapshots
-            username: ${{ secrets.SONATYPE_USERNAME }}
-            password: ${{ secrets.SONATYPE_PASSWORD }}
+            username: ${{secrets.SONATYPE_USERNAME}}
+            password: ${{secrets.SONATYPE_PASSWORD}}
             format: maven2
             repository: ossrh
             coordinates: groupId=io.cresco artifactId=clientlib version=1.1-SNAPSHOT
