@@ -49,7 +49,7 @@
                 <repository>
                     <id>wso2-maven2-repository</id>
                     <name>WSO2 Maven2 Repository</name>
-                    <url>http://dist.wso2.org/maven2</url>
+                    <url>https://dist.wso2.org/maven2</url>
                     <snapshots>
                         <enabled>true</enabled>
                     </snapshots>
