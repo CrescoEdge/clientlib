@@ -1,6 +1,6 @@
 package crescoclient;
 
-public interface DataPlaneCallback {
+public interface OnMessageCallback {
 
     void onMessage(String msg);
 

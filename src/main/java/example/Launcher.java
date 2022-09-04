@@ -25,46 +25,19 @@ public class Launcher {
         client.connect();
         //client.messaging.sendsomething();
         client.connected();
-        int ii = 1;
-        while(ii == 1) {
-            System.out.println(client.connected());
-            //if(client.connected()) {
-            //    client.close();
-            //}
+
+
+        LogStreamerInterface ls = client.getLogStreamer();
+        ls.start();
+        while(!ls.connected()) {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
+        ls.update_config(dst_region, dst_agent);
 
-        //client.close();
-        //System.out.println(client.globalcontroller.get_agent_list(null));
-
-        //System.exit(0);
-        /*
-        class LogPrinter implements LogStreamerCallback {
-            @Override
-            public void onMessage(String msg) {
-                System.out.println(msg);
-            }
-        }
-
-        LogStreamer ls = client.getLogStreamer();
-        ls.connect();
-
-        ls.update_config(dst_region,dst_agent);
-
-
-        class DPPrinter implements DataPlaneCallback {
-            @Override
-            public void onMessage(String msg) {
-                System.out.println(msg);
-            }
-        }
-
-
-         */
 
         String identKey = "stream_name";
         String identId = "1234";
@@ -80,41 +53,30 @@ public class Launcher {
 
         String jsonConfig = gson.toJson(configDB);
 
-        /*
-         worker_filerepo_name = 'autopathworker'
-        deident_filerepo_name = 'deident'
-        converted_filerepo_name = 'converted'
-        metadata_filerepo_name = 'metadata'
+        DataPlaneInterface dataPlane = client.getDataPlane(jsonConfig);
+        dataPlane.start();
 
-        # describe the dataplane query allowing python client to listen in on filerepo communications
-        # this is not needed, but lets us see what is being communicated by the plugins
-        worker_stream_query = "filerepo_name='" + worker_filerepo_name + "' AND broadcast"
-        deident_stream_query = "filerepo_name='" + deident_filerepo_name + "' AND broadcast"
-        converted_stream_query = "filerepo_name='" + converted_filerepo_name + "' AND broadcast"
-        metadata_stream_query = "filerepo_name='" + metadata_filerepo_name + "' AND broadcast"
-         */
-        //String metadata_filerepo_name = "metadata";
-        //String streamQuery  = "filerepo_name='" + metadata_filerepo_name + "' AND broadcast";
-        //String streamName = "toots";
-        //String streamQuery = "stream_name='" + streamName + "'";
-        //String queryString = identKey + "='" + identId + "' and type='" + "outgoing" + "'";
-        //String queryString = identKey + "='" + identId;
-        //DataPlane dataPlane = client.getDataPlane(new DPPrinter(),jsonConfig);
-        //dataPlane.connect();
-
-
-        int count = 2500;
+        int count = 25;
 
         for(int i=0; i<count; i++) {
             try {
                 Thread.sleep(1000);
                 System.out.println("count: " + i);
                 //System.out.println("Incoming: " + ls.recv());
-                //dataPlane.send(String.valueOf(i));
+                if(i < 5) {
+                    dataPlane.send(String.valueOf(i));
+                } else {
+                    dataPlane.close();
+                    ls.close();
+                    client.close();
+                }
+
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
+
+
         System.out.println("EXIT");
         //ls.close();
 

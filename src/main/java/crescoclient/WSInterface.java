@@ -84,10 +84,9 @@ public class WSInterface
             public void run() {
                 try {
 
-                    if(isActive) {
-                        //clear out previous
-                        clearWS();
-                    }
+                    //clear out previous
+                    clearWS();
+
 
                     while ((isReconnect) && (!isActive)) {
                         try {
@@ -133,12 +132,13 @@ public class WSInterface
 
 
     public void close() {
-        isActive = false;
         isReconnect = false;
         clearWS();
     }
 
     private void clearWS() {
+
+        isActive = false;
         if(client != null) {
             stopLC(client);
         }
@@ -178,6 +178,7 @@ public class WSInterface
         @Override
         public void onClose(int statusCode, String reason) {
             wsCallback.onClose(statusCode,reason);
+
             if(isReconnect) {
                 if(isActive) {
                     start();

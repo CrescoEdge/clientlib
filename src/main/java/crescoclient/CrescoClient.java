@@ -68,19 +68,19 @@ public class CrescoClient {
         return msgEventInterface.connected();
     }
 
-    public LogStreamer getLogStreamer() {
-        return new LogStreamer(host, port);
+    public LogStreamerInterface getLogStreamer() {
+        return new LogStreamerInterface(host, port, service_key);
     }
 
-    public LogStreamer getLogStreamer(LogStreamerCallback logStreamerCallback) {
-        return new LogStreamer(host, port, logStreamerCallback);
+    public LogStreamerInterface getLogStreamer(OnMessageCallback onMessageCallback) {
+        return new LogStreamerInterface(host, port, service_key, onMessageCallback);
     }
 
-    public DataPlane getDataPlane(String streamName) {
-        return new DataPlane(host, port, streamName);
+    public DataPlaneInterface getDataPlane(String streamQuery) {
+        return new DataPlaneInterface(host, port, service_key, streamQuery);
     }
 
-    public DataPlane getDataPlane(DataPlaneCallback dataPlaneCallback, String streamName) {
-        return new DataPlane(host, port, dataPlaneCallback, streamName);
+    public DataPlaneInterface getDataPlane(String streamQuery, OnMessageCallback onMessageCallback) {
+        return new DataPlaneInterface(host, port, service_key, streamQuery, onMessageCallback);
     }
 }

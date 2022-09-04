@@ -26,8 +26,6 @@ public class MsgEventInterface {
 
         wsInterface = new WSInterface(wsConfig, new WSMsgEventCallback());
 
-
-
     }
 
     public void send(String message) {
