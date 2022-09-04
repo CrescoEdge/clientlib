@@ -10,12 +10,11 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 
 import java.net.URI;
 import java.util.concurrent.Future;
-import java.util.concurrent.SynchronousQueue;
 
 @WebSocket
-public class LogStreamer
+public class DataPlane
 {
-    private final Logger LOG = Log.getLogger(LogStreamer.class);
+    private final Logger LOG = Log.getLogger(DataPlane.class);
     private HttpClient http;
     private WebSocketClient client;
     private Session session;
@@ -23,26 +22,29 @@ public class LogStreamer
     private String host;
     private int port;
 
-    private LogStreamerCallback logStreamerCallback;
+    private DataPlaneCallback dataPlaneCallback;
+    private DataPlaneImpl socket;
+    private String streamName;
 
-
-    public LogStreamer(String host, int port, LogStreamerCallback logStreamerCallback) {
-        this.logStreamerCallback = logStreamerCallback;
+    public DataPlane(String host, int port, DataPlaneCallback dataPlaneCallback, String streamName) {
+        this.dataPlaneCallback = dataPlaneCallback;
         this.host = host;
         this.port = port;
+        this.streamName = streamName;
     }
 
-    public LogStreamer(String host, int port) {
-        this.logStreamerCallback = new LogPrinter();
+    public DataPlane(String host, int port, String streamName) {
+        this.dataPlaneCallback = new DPPrinter();
         this.host = host;
         this.port = port;
+        this.streamName = streamName;
     }
 
     public boolean connect() {
 
         //String url = "wss://qa.sockets.stackexchange.com/";
         //String url = "ws://localhost:8282/api/apisocket";
-        String url = "ws://" + host + ":" + port + "/api/logstreamer";
+        String url = "ws://" + host + ":" + port + "/api/dataplane";
 
         //SslContextFactory ssl = new SslContextFactory.Client();
         //ssl.setEndpointIdentificationAlgorithm("HTTPS");
@@ -53,7 +55,7 @@ public class LogStreamer
         {
             http.start();
             client.start();
-            LogStreamerImpl socket = new LogStreamerImpl(logStreamerCallback);
+            socket = new DataPlaneImpl(dataPlaneCallback, streamName);
             Future<Session> fut = client.connect(socket, URI.create(url));
 
             //Session session = fut.get();
@@ -96,15 +98,14 @@ public class LogStreamer
 
     }
 
-    public void update_config(String dst_region, String dst_agent) {
-        send(dst_region + ',' + dst_agent + ",Trace,default");
-    }
-
-    private void send(String message) {
+    public void send(String message) {
 
         try {
-
-            session.getRemote().sendString(message);
+            if(socket.isActive) {
+                session.getRemote().sendString(message);
+            } else {
+                LOG.warn("Can't send socket not active");
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -127,7 +128,7 @@ public class LogStreamer
         }
     }
 
-    class LogPrinter implements LogStreamerCallback {
+    class DPPrinter implements DataPlaneCallback {
         @Override
         public void onMessage(String msg) {
             System.out.println(msg);

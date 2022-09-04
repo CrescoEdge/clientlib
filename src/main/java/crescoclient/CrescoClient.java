@@ -59,4 +59,19 @@ public class CrescoClient {
         return ws_interface.connected();
     }
 
+    public LogStreamer getLogStreamer() {
+        return new LogStreamer(host, port);
+    }
+
+    public LogStreamer getLogStreamer(LogStreamerCallback logStreamerCallback) {
+        return new LogStreamer(host, port, logStreamerCallback);
+    }
+
+    public DataPlane getDataPlane(String streamName) {
+        return new DataPlane(host, port, streamName);
+    }
+
+    public DataPlane getDataPlane(DataPlaneCallback dataPlaneCallback, String streamName) {
+        return new DataPlane(host, port, dataPlaneCallback, streamName);
+    }
 }

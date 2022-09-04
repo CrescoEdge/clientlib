@@ -1,29 +1,31 @@
 package crescoclient;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.*;
+
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Map;
 
-import com.google.gson.reflect.TypeToken;
-
 @WebSocket
-public class LogStreamerImpl
+public class DataPlaneImpl
 {
     public boolean isActive = false;
     private int messageCount = 0;
     private Type type = new TypeToken<Map<String, String>>(){}.getType();
-    private final Logger LOG = Log.getLogger(LogStreamerImpl.class);
+    private final Logger LOG = Log.getLogger(DataPlaneImpl.class);
 
     private Gson gson;
-    private LogStreamerCallback logStreamerCallback;
+    private DataPlaneCallback dataPlaneCallback;
 
-    public LogStreamerImpl(LogStreamerCallback logStreamerCallback) {
-
-        this.logStreamerCallback = logStreamerCallback;
+    private String streamName;
+    public DataPlaneImpl(DataPlaneCallback dataPlaneCallback, String streamName) {
+        this.dataPlaneCallback = dataPlaneCallback;
+        this.streamName = streamName;
         this.gson = new Gson();
     }
 
@@ -31,6 +33,11 @@ public class LogStreamerImpl
     public void onConnect(Session sess)
     {
         LOG.info("onConnect({})", sess);
+        try {
+            sess.getRemote().sendString(streamName);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @OnWebSocketClose
@@ -54,7 +61,7 @@ public class LogStreamerImpl
                     isActive = true;
                 }
             } else {
-                logStreamerCallback.onMessage(msg);
+                dataPlaneCallback.onMessage(msg);
             }
             messageCount += 1;
 
