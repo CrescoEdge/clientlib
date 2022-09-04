@@ -1,11 +1,15 @@
 package crescoclient;
 
+
+import org.eclipse.jetty.util.log.Log;
+
 public class CrescoClient {
 
     private String host;
     private int port;
     private String service_key;
-    private WSInterface ws_interface;
+    private MsgEventInterface msgEventInterface;
+
     public Messaging messaging;
     public Agents agents;
     public Admin admin;
@@ -20,11 +24,16 @@ public class CrescoClient {
      */
     public CrescoClient(String host, int port, String service_key) {
 
+        //This is needed to suppress Jetty logging
+        Log.getProperties().setProperty("org.eclipse.jetty.util.log.announce", "false");
+        System.setProperty("org.eclipse.jetty.util.log.class", "org.eclipse.jetty.util.log.StdErrLog");
+        System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
+
         this.host = host;
         this.port = port;
         this.service_key = service_key;
-        this.ws_interface = new WSInterface();
-        this.messaging = new Messaging(ws_interface);
+        this.msgEventInterface = new MsgEventInterface(host,port,service_key);
+        this.messaging = new Messaging(msgEventInterface);
         this.agents = new Agents(messaging);
         this.admin = new Admin(messaging);
         this.globalcontroller = new GlobalController(messaging);
@@ -36,7 +45,7 @@ public class CrescoClient {
      * @return true
      */
     public boolean connect() {
-        ws_interface.connect(host, port);
+        msgEventInterface.start();
         return true;
     }
 
@@ -46,7 +55,7 @@ public class CrescoClient {
      * @return true
      */
     public boolean close() {
-        ws_interface.close();
+        msgEventInterface.close();
         return true;
     }
 
@@ -56,7 +65,7 @@ public class CrescoClient {
      * @return true if connected, false if not
      */
     public boolean connected() {
-        return ws_interface.connected();
+        return msgEventInterface.connected();
     }
 
     public LogStreamer getLogStreamer() {

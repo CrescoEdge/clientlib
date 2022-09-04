@@ -32,7 +32,7 @@ public class DataPlaneImpl
     @OnWebSocketConnect
     public void onConnect(Session sess)
     {
-        LOG.info("onConnect({})", sess);
+        LOG.debug("onConnect({})", sess);
         try {
             sess.getRemote().sendString(streamName);
         } catch (IOException e) {
@@ -43,7 +43,7 @@ public class DataPlaneImpl
     @OnWebSocketClose
     public void onClose(int statusCode, String reason)
     {
-        LOG.info("onClose({}, {})", statusCode, reason);
+        LOG.debug("onClose({}, {})", statusCode, reason);
     }
 
     @OnWebSocketError

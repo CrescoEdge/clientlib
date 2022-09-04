@@ -25,9 +25,24 @@ public class Launcher {
         client.connect();
         //client.messaging.sendsomething();
         client.connected();
+        int ii = 1;
+        while(ii == 1) {
+            System.out.println(client.connected());
+            //if(client.connected()) {
+            //    client.close();
+            //}
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        //client.close();
         //System.out.println(client.globalcontroller.get_agent_list(null));
 
-
+        //System.exit(0);
+        /*
         class LogPrinter implements LogStreamerCallback {
             @Override
             public void onMessage(String msg) {
@@ -48,6 +63,8 @@ public class Launcher {
             }
         }
 
+
+         */
 
         String identKey = "stream_name";
         String identId = "1234";
@@ -81,12 +98,12 @@ public class Launcher {
         //String streamName = "toots";
         //String streamQuery = "stream_name='" + streamName + "'";
         //String queryString = identKey + "='" + identId + "' and type='" + "outgoing" + "'";
-        String queryString = identKey + "='" + identId;
-        DataPlane dataPlane = client.getDataPlane(new DPPrinter(),jsonConfig);
-        dataPlane.connect();
+        //String queryString = identKey + "='" + identId;
+        //DataPlane dataPlane = client.getDataPlane(new DPPrinter(),jsonConfig);
+        //dataPlane.connect();
 
 
-        int count = 25;
+        int count = 2500;
 
         for(int i=0; i<count; i++) {
             try {

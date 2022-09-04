@@ -30,13 +30,13 @@ public class LogStreamerImpl
     @OnWebSocketConnect
     public void onConnect(Session sess)
     {
-        LOG.info("onConnect({})", sess);
+        LOG.debug("onConnect({})", sess);
     }
 
     @OnWebSocketClose
     public void onClose(int statusCode, String reason)
     {
-        LOG.info("onClose({}, {})", statusCode, reason);
+        LOG.debug("onClose({}, {})", statusCode, reason);
     }
 
     @OnWebSocketError

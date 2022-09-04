@@ -16,12 +16,12 @@ import java.util.zip.GZIPOutputStream;
 public class Messaging {
 
     private Gson gson;
-    private WSInterface ws_interface;
+    private MsgEventInterface ws_interface;
     private Type maptype = new TypeToken<Map<String, String>>(){}.getType();
     private Type mapListMapType = new TypeToken<Map<String, List<Map<String, String>>>>(){}.getType();
 
 
-    public Messaging(WSInterface ws_interface) {
+    public Messaging(MsgEventInterface ws_interface) {
         this.ws_interface = ws_interface;
         gson = new Gson();
     }

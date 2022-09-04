@@ -9,100 +9,145 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
 import java.net.URI;
+import java.util.Map;
 import java.util.concurrent.Future;
-import java.util.concurrent.SynchronousQueue;
 
 @WebSocket
 public class WSInterface
 {
+    private boolean isActive = false;
+
+    private boolean isReconnect = true;
     private final Logger LOG = Log.getLogger(WSInterface.class);
     private HttpClient http;
     private WebSocketClient client;
     private Session session;
-    private SynchronousQueue<String> messageQueue;
 
-    public WSInterface() {
+    private Map<String,String> wsConfig;
 
-        messageQueue = new SynchronousQueue<>();
+    private WSCallback wsCallback;
+
+    public WSInterface(Map<String,String> wsConfig, WSCallback wsCallback) {
+        this.wsConfig = wsConfig;
+        this.wsCallback = wsCallback;
+    }
+
+    public boolean connect() {
+
+        boolean isConnected = false;
+
+        if(wsConfig != null) {
+            if(wsConfig.containsKey("host") && wsConfig.containsKey("port") && wsConfig.containsKey("service_key") && wsConfig.containsKey("api_path")) {
+
+                String url = "ws://" + wsConfig.get("host") + ":" + wsConfig.get("port") + wsConfig.get("api_path");
+
+                //SslContextFactory ssl = new SslContextFactory.Client();
+                //ssl.setEndpointIdentificationAlgorithm("HTTPS");
+                //HttpClient http = new HttpClient(ssl);
+                http = new HttpClient();
+                client = new WebSocketClient(http);
+                try
+                {
+                    http.start();
+                    client.start();
+                    WSInterfaceImpl socket = new WSInterfaceImpl(new WSPassThroughCallback());
+                    Future<Session> fut = client.connect(socket, URI.create(url));
+
+                    session = fut.get();
+                    isConnected = session.isOpen();
+
+                }
+                catch (Throwable t)
+                {
+                    LOG.warn(t);
+                }
+                finally
+                {
+                    //stop(http);
+                    //stop(client);
+                }
+
+            } else {
+                LOG.warn("connect(): wsConfig missing one or more key [host, port, api_path, service_key]");
+            }
+        } else {
+            LOG.warn("connect(): wsConfig == null");
+        }
+
+        return isConnected;
+    }
+
+    public void start() {
+
+        //create new thread try and start continuously
+        new Thread(){
+            public void run() {
+                try {
+
+                    if(isActive) {
+                        //clear out previous
+                        clearWS();
+                    }
+
+                    while ((isReconnect) && (!isActive)) {
+                        try {
+                            connect();
+                            Thread.sleep(5000);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                } catch (Exception ex) {
+                    //do nothing
+                }
+            }
+
+        }.start();
 
     }
 
-    public boolean connect(String host, int port) {
+    public boolean getIsActive() {
+        return isActive;
+    }
 
-        //String url = "wss://qa.sockets.stackexchange.com/";
-        String url = "ws://" + host + ":" + port + "/api/apisocket";
+    public boolean getIsReconnect() {
+        return isReconnect;
+    }
 
-        //SslContextFactory ssl = new SslContextFactory.Client();
-        //ssl.setEndpointIdentificationAlgorithm("HTTPS");
-        //HttpClient http = new HttpClient(ssl);
-        http = new HttpClient();
-        client = new WebSocketClient(http);
-        try
-        {
-            http.start();
-            client.start();
-            WSInterfaceImpl socket = new WSInterfaceImpl(messageQueue);
-            Future<Session> fut = client.connect(socket, URI.create(url));
-
-            //Session session = fut.get();
-            session = fut.get();
-            //String payload = "{\"message_info\": {\"message_type\": \"global_agent_msgevent\", \"message_event_type\": \"EXEC\", \"dst_region\": \"global-region\", \"dst_agent\": \"global-controller\", \"is_rpc\": true}, \"message_payload\": {\"action\": \"getcontrollerstatus\"}}";
-            //session.getRemote().sendString(payload);
-            //Future<Void> f = session.getRemote().sendStringByFuture(payload);
-            //f.get();
-
-            //session.getRemote().sendString("Hello");
-            //session.getRemote().sendString("155-questions-active");
-
-
-        }
-        catch (Throwable t)
-        {
-            LOG.warn(t);
-        }
-        finally
-        {
-            //stop(http);
-            //stop(client);
-        }
-        return true;
+    public void setIsReconnect(boolean isReconnect) {
+        this.isReconnect = isReconnect;
     }
 
     public boolean connected() {
-
-        return session.isOpen();
-
-    }
-
-    public void send(String message) {
-
-        try {
-
-            session.getRemote().sendString(message);
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        if(session != null) {
+            return session.isOpen();
+        } else {
+            return false;
         }
     }
 
-    public String recv() {
-        String responce = null;
-        try {
-
-            responce = messageQueue.take();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return responce;
+    public Session getSession() {
+        return session;
     }
+
 
     public void close() {
-        stop(http);
-        stop(client);
+        isActive = false;
+        isReconnect = false;
+        clearWS();
     }
 
-    private void stop(LifeCycle lifeCycle) {
+    private void clearWS() {
+        if(client != null) {
+            stopLC(client);
+        }
+        if(http != null) {
+            stopLC(http);
+        }
+    }
+
+    private void stopLC(LifeCycle lifeCycle) {
         try
         {
             lifeCycle.stop();
@@ -113,5 +158,31 @@ public class WSInterface
         }
     }
 
+    class WSPassThroughCallback implements WSCallback {
+        @Override
+        public void onConnect(Session sess) {
+            isActive = true;
+            wsCallback.onConnect(sess);
+        }
 
+        @Override
+        public void onError(Throwable cause) {
+            wsCallback.onError(cause);
+        }
+
+        @Override
+        public void onMessage(String msg) {
+            wsCallback.onMessage(msg);
+        }
+
+        @Override
+        public void onClose(int statusCode, String reason) {
+            wsCallback.onClose(statusCode,reason);
+            if(isReconnect) {
+                if(isActive) {
+                    start();
+                }
+            }
+        }
+    }
 }
