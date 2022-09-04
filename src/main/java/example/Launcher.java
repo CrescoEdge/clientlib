@@ -83,7 +83,7 @@ public class Launcher {
         //String streamQuery = "stream_name='" + streamName + "'";
         //String queryString = identKey + "='" + identId + "' and type='" + "outgoing" + "'";
         String queryString = identKey + "='" + identId;
-        DataPlane dataPlane = client.getDataPlane(new DPPrinter(),queryString);
+        DataPlane dataPlane = client.getDataPlane(new DPPrinter(),jsonConfig);
         dataPlane.connect();
 
         int count = 25;
