@@ -1,4 +1,4 @@
-package crescoclient;
+package crescoclient.core;
 
 import java.io.FileInputStream;
 import java.io.InputStream;

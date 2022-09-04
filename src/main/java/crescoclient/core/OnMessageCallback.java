@@ -1,4 +1,4 @@
-package crescoclient;
+package crescoclient.core;
 
 public interface OnMessageCallback {
 

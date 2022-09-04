@@ -1,5 +1,7 @@
-package crescoclient;
+package crescoclient.msgevent;
 
+import crescoclient.core.WSCallback;
+import crescoclient.core.WSInterface;
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.websocket.api.Session;

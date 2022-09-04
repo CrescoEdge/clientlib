@@ -1,47 +1,52 @@
-package crescoclient;
+package crescoclient.dataplane;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import crescoclient.core.OnMessageCallback;
+import crescoclient.core.WSCallback;
+import crescoclient.core.WSInterface;
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.websocket.api.Session;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.SynchronousQueue;
 
-public class LogStreamerInterface {
+public class DataPlaneInterface {
 
     private boolean isActive = false;
     private int messageCount = 0;
     private Map<String,String> wsConfig;
-    private final Logger LOG = Log.getLogger(LogStreamerInterface.class);
+    private final Logger LOG = Log.getLogger(DataPlaneInterface.class);
     private WSInterface wsInterface;
 
     private OnMessageCallback onMessageCallback;
     private Gson gson;
     private Type type = new TypeToken<Map<String, String>>(){}.getType();
 
-    public LogStreamerInterface(String host, int port, String serviceKey) {
+    public DataPlaneInterface(String host, int port, String serviceKey, String streamQuery) {
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
         wsConfig.put("service_key", serviceKey);
-        wsConfig.put("api_path","/api/logstreamer");
+        wsConfig.put("api_path","/api/dataplane");
+        wsConfig.put("stream_query", streamQuery);
 
         onMessageCallback = new LogPrinter();
         wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
         gson = new Gson();
     }
 
-    public LogStreamerInterface(String host, int port, String serviceKey, OnMessageCallback onMessageCallback) {
+    public DataPlaneInterface(String host, int port, String serviceKey, String streamQuery, OnMessageCallback onMessageCallback) {
 
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
         wsConfig.put("service_key", serviceKey);
-        wsConfig.put("api_path","/api/logstreamer");
+        wsConfig.put("api_path","/api/dataplane");
+        wsConfig.put("stream_query", streamQuery);
 
         wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
         gson = new Gson();
@@ -50,9 +55,11 @@ public class LogStreamerInterface {
     public void send(String message) {
 
         try {
-
-            wsInterface.getSession().getRemote().sendString(message);
-
+            if(wsInterface.connected()) {
+                wsInterface.getSession().getRemote().sendString(message);
+            } else {
+                System.out.println("WS not connected!");
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -78,7 +85,11 @@ public class LogStreamerInterface {
     class WSLogStreamerCallback implements WSCallback {
         @Override
         public void onConnect(Session sess) {
-
+            try {
+                sess.getRemote().sendString(wsConfig.get("stream_query"));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override

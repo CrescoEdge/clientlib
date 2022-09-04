@@ -1,7 +1,8 @@
-package crescoclient;
+package crescoclient.core;
 
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
+import crescoclient.msgevent.MsgEventInterface;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

@@ -1,4 +1,4 @@
-package crescoclient;
+package crescoclient.core;
 
 import com.google.gson.Gson;
 

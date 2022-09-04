@@ -1,4 +1,4 @@
-package crescoclient;
+package crescoclient.core;
 
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.component.LifeCycle;

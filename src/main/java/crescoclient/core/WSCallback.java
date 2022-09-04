@@ -1,4 +1,4 @@
-package crescoclient;
+package crescoclient.core;
 
 import org.eclipse.jetty.websocket.api.Session;
 

@@ -2,10 +2,11 @@ package example;
 
 import com.google.gson.Gson;
 import crescoclient.*;
+import crescoclient.dataplane.DataPlaneInterface;
+import crescoclient.logstreamer.LogStreamerInterface;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class Launcher {

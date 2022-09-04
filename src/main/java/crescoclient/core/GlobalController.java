@@ -1,6 +1,8 @@
-package crescoclient;
+package crescoclient.core;
 
 import com.google.gson.Gson;
+import crescoclient.core.Messaging;
+import crescoclient.core.Utils;
 import io.cresco.library.app.gPayload;
 
 import java.nio.file.Files;

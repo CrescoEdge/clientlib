@@ -1,6 +1,10 @@
 package crescoclient;
 
 
+import crescoclient.core.*;
+import crescoclient.dataplane.DataPlaneInterface;
+import crescoclient.logstreamer.LogStreamerInterface;
+import crescoclient.msgevent.MsgEventInterface;
 import org.eclipse.jetty.util.log.Log;
 
 public class CrescoClient {

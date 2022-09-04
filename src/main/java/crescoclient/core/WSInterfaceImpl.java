@@ -1,4 +1,4 @@
-package crescoclient;
+package crescoclient.core;
 
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
