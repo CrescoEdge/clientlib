@@ -63,7 +63,6 @@ public class Launcher {
 
         String jsonConfig = gson.toJson(configDB);
 
-
         /*
          worker_filerepo_name = 'autopathworker'
         deident_filerepo_name = 'deident'
@@ -85,6 +84,7 @@ public class Launcher {
         String queryString = identKey + "='" + identId;
         DataPlane dataPlane = client.getDataPlane(new DPPrinter(),jsonConfig);
         dataPlane.connect();
+
 
         int count = 25;
 
