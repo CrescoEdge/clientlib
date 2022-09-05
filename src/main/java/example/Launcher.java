@@ -5,7 +5,15 @@ import crescoclient.*;
 import crescoclient.dataplane.DataPlaneInterface;
 import crescoclient.logstreamer.LogStreamerInterface;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,10 +25,14 @@ public class Launcher {
 
         String host = "localhost";
         int port = 8282;
-        String service_key = "1234";
+        String service_key = "abc-8675309";
+
+        //String dst_region = "dp";
+        //String dst_agent = "agent-c988701a-5f2a-43ac-b915-156049c5d1ee";
 
         String dst_region = "global-region";
         String dst_agent = "global-controller";
+
 
         CrescoClient client = new CrescoClient(host,port,service_key);
         client.connect();
@@ -38,7 +50,6 @@ public class Launcher {
             }
         }
         ls.update_config(dst_region, dst_agent);
-
 
         String identKey = "stream_name";
         String identId = "1234";

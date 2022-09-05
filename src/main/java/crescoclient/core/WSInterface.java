@@ -4,10 +4,13 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
+import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
+import javax.net.ssl.HttpsURLConnection;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -36,22 +39,33 @@ public class WSInterface
 
         boolean isConnected = false;
 
+
+
+
+
         if(wsConfig != null) {
             if(wsConfig.containsKey("host") && wsConfig.containsKey("port") && wsConfig.containsKey("service_key") && wsConfig.containsKey("api_path")) {
 
-                String url = "ws://" + wsConfig.get("host") + ":" + wsConfig.get("port") + wsConfig.get("api_path");
+                String url = "wss://" + wsConfig.get("host") + ":" + wsConfig.get("port") + wsConfig.get("api_path");
 
-                //SslContextFactory ssl = new SslContextFactory.Client();
+                SslContextFactory ssl = new SslContextFactory.Client();
+                ssl.setTrustAll(true);
+                ssl.setValidateCerts(false);
+                ssl.setValidatePeerCerts(false);
+                ssl.setEndpointIdentificationAlgorithm(null);
                 //ssl.setEndpointIdentificationAlgorithm("HTTPS");
-                //HttpClient http = new HttpClient(ssl);
-                http = new HttpClient();
+                http = new HttpClient(ssl);
+                //http = new HttpClient();
                 client = new WebSocketClient(http);
+                ClientUpgradeRequest request = new ClientUpgradeRequest();
+                request.setHeader("cresco_service_key",wsConfig.get("service_key"));
+
                 try
                 {
                     http.start();
                     client.start();
                     WSInterfaceImpl socket = new WSInterfaceImpl(new WSPassThroughCallback());
-                    Future<Session> fut = client.connect(socket, URI.create(url));
+                    Future<Session> fut = client.connect(socket, URI.create(url), request);
 
                     session = fut.get();
                     isConnected = session.isOpen();

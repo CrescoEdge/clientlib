@@ -32,6 +32,7 @@ public class CrescoClient {
         Log.getProperties().setProperty("org.eclipse.jetty.util.log.announce", "false");
         System.setProperty("org.eclipse.jetty.util.log.class", "org.eclipse.jetty.util.log.StdErrLog");
         System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
+        //System.setProperty("oejusS.config.LEVEL", "OFF");
 
         this.host = host;
         this.port = port;
