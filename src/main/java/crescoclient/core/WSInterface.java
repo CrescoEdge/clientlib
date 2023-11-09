@@ -53,6 +53,7 @@ public class WSInterface
                 ssl.setValidateCerts(false);
                 ssl.setValidatePeerCerts(false);
                 ssl.setEndpointIdentificationAlgorithm(null);
+                ssl.setIncludeProtocols("TLSv1.2", "TLSv1.3");
                 //ssl.setEndpointIdentificationAlgorithm("HTTPS");
                 http = new HttpClient(ssl);
                 //http = new HttpClient();
