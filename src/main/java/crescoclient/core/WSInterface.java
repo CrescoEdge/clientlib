@@ -40,9 +40,6 @@ public class WSInterface
         boolean isConnected = false;
 
 
-
-
-
         if(wsConfig != null) {
             if(wsConfig.containsKey("host") && wsConfig.containsKey("port") && wsConfig.containsKey("service_key") && wsConfig.containsKey("api_path")) {
 
