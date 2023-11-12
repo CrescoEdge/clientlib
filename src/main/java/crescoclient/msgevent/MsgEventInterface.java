@@ -30,6 +30,16 @@ public class MsgEventInterface {
 
     }
 
+    public String getRegionName() {
+        return wsInterface.getRegionName();
+    }
+    public String getAgentName() {
+        return wsInterface.getAgentName();
+    }
+    public String getPluginName() {
+        return wsInterface.getPluginName();
+    }
+
     public void send(String message) {
 
         try {

@@ -17,6 +17,8 @@ public class CrescoClient {
     public Messaging messaging;
     public Agents agents;
     public Admin admin;
+
+    public API api;
     public GlobalController globalcontroller;
 
     /**
@@ -41,6 +43,7 @@ public class CrescoClient {
         this.messaging = new Messaging(msgEventInterface);
         this.agents = new Agents(messaging);
         this.admin = new Admin(messaging);
+        this.api = new API(msgEventInterface, messaging);
         this.globalcontroller = new GlobalController(messaging);
     }
 

@@ -10,8 +10,9 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
-import javax.net.ssl.HttpsURLConnection;
 import java.net.URI;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -20,6 +21,9 @@ public class WSInterface
 {
     private boolean isActive = false;
 
+    private String regionName;
+    private String agentName;
+    private String pluginName;
     private boolean isReconnect = true;
     private final Logger LOG = Log.getLogger(WSInterface.class);
     private HttpClient http;
@@ -33,6 +37,33 @@ public class WSInterface
     public WSInterface(Map<String,String> wsConfig, WSCallback wsCallback) {
         this.wsConfig = wsConfig;
         this.wsCallback = wsCallback;
+    }
+
+    public String getRegionName() {
+        return regionName;
+    }
+    public String getAgentName() {
+        return agentName;
+    }
+    public String getPluginName() {
+        return pluginName;
+    }
+    private void setAgentInfo(HttpClient http) {
+
+        try {
+            byte[] s = http.getSslContextFactory().getSslContext().getClientSessionContext().getIds().nextElement();
+            Certificate[] cert = http.getSslContextFactory().getSslContext().getClientSessionContext().getSession(s).getPeerCertificates();
+
+            //LOG.info("WHAT: " + cert[0].getType() + ' ' + cert[0]);
+            X509Certificate sd = (X509Certificate) cert[0];
+            String[] cnName = sd.getIssuerX500Principal().getName().replace("CN=","").split("_");
+            regionName = cnName[0];
+            agentName = cnName[1];
+            pluginName = cnName[2];
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
     public boolean connect() {
@@ -55,18 +86,26 @@ public class WSInterface
                 http = new HttpClient(ssl);
                 //http = new HttpClient();
                 client = new WebSocketClient(http);
+
                 ClientUpgradeRequest request = new ClientUpgradeRequest();
                 request.setHeader("cresco_service_key",wsConfig.get("service_key"));
+
 
                 try
                 {
                     http.start();
                     client.start();
+
                     WSInterfaceImpl socket = new WSInterfaceImpl(new WSPassThroughCallback());
                     Future<Session> fut = client.connect(socket, URI.create(url), request);
 
                     session = fut.get();
+                    //Set region and agent info
+                    setAgentInfo(http);
+                    //set connected
                     isConnected = session.isOpen();
+
+
 
                 }
                 catch (Throwable t)

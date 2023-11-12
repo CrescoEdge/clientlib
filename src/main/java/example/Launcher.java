@@ -25,14 +25,10 @@ public class Launcher {
 
         String host = "localhost";
         int port = 8282;
-        String service_key = "abc-8675309";
+        String service_key = "8675309";
 
         //String dst_region = "dp";
         //String dst_agent = "agent-c988701a-5f2a-43ac-b915-156049c5d1ee";
-
-        String dst_region = "global-region";
-        String dst_agent = "global-controller";
-
 
         CrescoClient client = new CrescoClient(host,port,service_key);
         client.connect();
@@ -49,6 +45,17 @@ public class Launcher {
                 throw new RuntimeException(e);
             }
         }
+
+        String dst_region = client.api.getGlobalRegion();
+        String dst_agent = client.api.getGlobalAgent();
+
+        System.out.println("GLOALASD: " + client.api.getGlobalRegion());
+
+
+        System.out.println("region: " + client.api.getAPIRegionName());
+        System.out.println("agent: " + client.api.getAPIAgentName());
+        System.out.println("plugin: " + client.api.getAPIPluginName());
+
         ls.update_config(dst_region, dst_agent);
 
         String identKey = "stream_name";
@@ -87,7 +94,6 @@ public class Launcher {
                 throw new RuntimeException(e);
             }
         }
-
 
         System.out.println("EXIT");
         //ls.close();
