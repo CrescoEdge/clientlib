@@ -47,13 +47,30 @@ public class CrescoClient {
         this.globalcontroller = new GlobalController(messaging);
     }
 
+    public boolean connect() {
+        return connect(5);
+    }
     /**
      * Method used to connect to the wsapi plugin interface
      *
      * @return true
      */
-    public boolean connect() {
+    public boolean connect(int timeout) {
         msgEventInterface.start();
+
+        while(!msgEventInterface.connected()) {
+            try {
+                if(timeout > 0) {
+                    Thread.sleep(1000);
+                    timeout--;
+                } else {
+                    return false;
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         return true;
     }
 

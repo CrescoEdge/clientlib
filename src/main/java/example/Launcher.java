@@ -33,9 +33,8 @@ public class Launcher {
         CrescoClient client = new CrescoClient(host,port,service_key);
         client.connect();
         //client.messaging.sendsomething();
-        client.connected();
-
-
+        System.out.println("Client status: " + client.connected());
+        
         LogStreamerInterface ls = client.getLogStreamer();
         ls.start();
         while(!ls.connected()) {
@@ -48,9 +47,6 @@ public class Launcher {
 
         String dst_region = client.api.getGlobalRegion();
         String dst_agent = client.api.getGlobalAgent();
-
-        System.out.println("GLOALASD: " + client.api.getGlobalRegion());
-
 
         System.out.println("region: " + client.api.getAPIRegionName());
         System.out.println("agent: " + client.api.getAPIAgentName());
