@@ -25,7 +25,10 @@ public class LogStreamerInterface {
     private Gson gson;
     private Type type = new TypeToken<Map<String, String>>(){}.getType();
 
-    public LogStreamerInterface(String host, int port, String serviceKey) {
+    private int connectionTimeout;
+
+    public LogStreamerInterface(String host, int port, String serviceKey, int connectionTimeout) {
+        this.connectionTimeout = connectionTimeout;
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
@@ -65,7 +68,7 @@ public class LogStreamerInterface {
     }
 
     public void start() {
-        wsInterface.start();
+        wsInterface.start(connectionTimeout);
         //wsInterface.connect();
     }
 

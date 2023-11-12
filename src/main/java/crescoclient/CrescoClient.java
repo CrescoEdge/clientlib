@@ -21,6 +21,8 @@ public class CrescoClient {
     public API api;
     public GlobalController globalcontroller;
 
+    private int connectionTimeout = 5;
+
     /**
      * Class object used to connect the client library to a Cresco websocket API endpoint
      *
@@ -47,31 +49,25 @@ public class CrescoClient {
         this.globalcontroller = new GlobalController(messaging);
     }
 
-    public boolean connect() {
-        return connect(5);
+    public boolean connect() throws InterruptedException {
+        return connect(true);
     }
+
     /**
      * Method used to connect to the wsapi plugin interface
      *
      * @return true
      */
-    public boolean connect(int timeout) {
-        msgEventInterface.start();
-
-        while(!msgEventInterface.connected()) {
-            try {
-                if(timeout > 0) {
-                    Thread.sleep(1000);
-                    timeout--;
-                } else {
-                    return false;
-                }
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+    public boolean connect(boolean blockOnConnect) throws InterruptedException {
+        int timeout = connectionTimeout;
+        msgEventInterface.start(connectionTimeout);
+        if(blockOnConnect) {
+            while((!msgEventInterface.connected()) && (timeout > 0)) {
+                Thread.sleep(1000);
+                timeout--;
             }
         }
-
-        return true;
+        return msgEventInterface.connected();
     }
 
     /**
@@ -94,7 +90,7 @@ public class CrescoClient {
     }
 
     public LogStreamerInterface getLogStreamer() {
-        return new LogStreamerInterface(host, port, service_key);
+        return new LogStreamerInterface(host, port, service_key, connectionTimeout);
     }
 
     public LogStreamerInterface getLogStreamer(OnMessageCallback onMessageCallback) {
@@ -102,7 +98,7 @@ public class CrescoClient {
     }
 
     public DataPlaneInterface getDataPlane(String streamQuery) {
-        return new DataPlaneInterface(host, port, service_key, streamQuery);
+        return new DataPlaneInterface(host, port, service_key, streamQuery, connectionTimeout);
     }
 
     public DataPlaneInterface getDataPlane(String streamQuery, OnMessageCallback onMessageCallback) {

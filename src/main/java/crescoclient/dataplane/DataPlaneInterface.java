@@ -26,7 +26,11 @@ public class DataPlaneInterface {
     private Gson gson;
     private Type type = new TypeToken<Map<String, String>>(){}.getType();
 
-    public DataPlaneInterface(String host, int port, String serviceKey, String streamQuery) {
+    private int connectionTimeout;
+
+    public DataPlaneInterface(String host, int port, String serviceKey, String streamQuery, int connectionTimeout) {
+        this.connectionTimeout = connectionTimeout;
+
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
@@ -70,7 +74,7 @@ public class DataPlaneInterface {
     }
 
     public void start() {
-        wsInterface.start();
+        wsInterface.start(connectionTimeout);
         //wsInterface.connect();
     }
 

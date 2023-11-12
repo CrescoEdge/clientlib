@@ -20,7 +20,7 @@ import java.util.Map;
 public class Launcher {
 
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
 
 
         String host = "localhost";
@@ -32,75 +32,44 @@ public class Launcher {
 
         CrescoClient client = new CrescoClient(host,port,service_key);
         client.connect();
-        //client.messaging.sendsomething();
-        System.out.println("Client status: " + client.connected());
-        
-        LogStreamerInterface ls = client.getLogStreamer();
-        ls.start();
-        while(!ls.connected()) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
 
-        String dst_region = client.api.getGlobalRegion();
-        String dst_agent = client.api.getGlobalAgent();
+        if(client.connected()) {
 
-        System.out.println("region: " + client.api.getAPIRegionName());
-        System.out.println("agent: " + client.api.getAPIAgentName());
-        System.out.println("plugin: " + client.api.getAPIPluginName());
+            System.out.println("region: " + client.api.getAPIRegionName());
+            System.out.println("agent: " + client.api.getAPIAgentName());
+            System.out.println("plugin: " + client.api.getAPIPluginName());
 
-        ls.update_config(dst_region, dst_agent);
+            String dst_region = client.api.getGlobalRegion();
+            String dst_agent = client.api.getGlobalAgent();
+            System.out.println("global region: " + dst_region + " agent:" + dst_agent);
 
-        String identKey = "stream_name";
-        String identId = "1234";
-        //String streamQuery = "stream_name='" + identId + "'";
-        Map<String,String> configDB = new HashMap<>();
-        configDB.put("ident_key",identKey);
-        configDB.put("ident_id",identId);
-        //configDB.put("stream_query",identKey + "='" + identId + "' and type='" + "outgoing" + "'");
-        configDB.put("io_type_key","type");
-        configDB.put("output_id","output");
-        configDB.put("input_id","output");
-        Gson gson = new Gson();
+            Testers testers = new Testers(client);
 
-        String jsonConfig = gson.toJson(configDB);
+            System.out.println("--Start repeated testing--");
 
-        DataPlaneInterface dataPlane = client.getDataPlane(jsonConfig);
-        dataPlane.start();
-
-        int count = 25;
-
-        for(int i=0; i<count; i++) {
-            try {
-                Thread.sleep(1000);
-                System.out.println("count: " + i);
-                //System.out.println("Incoming: " + ls.recv());
-                if(i < 5) {
-                    dataPlane.send(String.valueOf(i));
-                } else {
-                    dataPlane.close();
-                    ls.close();
-                    client.close();
+            int count = 0;
+            while(true) {
+                System.out.println("Count: " + count);
+                System.out.println("Client status: " + client.connected());
+                try {
+                    testers.getResourcesAndLists();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                 }
-
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                Thread.sleep(1000);
+                count++;
             }
-        }
 
-        System.out.println("EXIT");
-        //ls.close();
 
-        //Testers testers = new Testers(client);
+            //client.close();
 
-        //String dst_region = "global-region";
-        //String dst_agent = "global-controller";
-        //String jar_file_path = "/Users/cody/IdeaProjects/cepdemo/target/cepdemo-1.1-SNAPSHOT.jar";
+            //Testers testers = new Testers(client);
 
-        //launch pipeline
+            //String dst_region = "global-region";
+            //String dst_agent = "global-controller";
+            //String jar_file_path = "/Users/cody/IdeaProjects/cepdemo/target/cepdemo-1.1-SNAPSHOT.jar";
+
+            //launch pipeline
         /*
         testers.launch_apps(dst_region,dst_agent,jar_file_path,1);
         String pipeline_id = client.globalcontroller.get_pipeline_list().get(0).get("pipeline_id");
@@ -108,22 +77,6 @@ public class Launcher {
         gPayload gpay = client.globalcontroller.get_pipeline_info(pipeline_id);
         System.out.println(gpay.pipeline_name);
         System.out.println(client.globalcontroller.get_pipeline_status(gpay.pipeline_id));
-
-        Map<String, List<Map<String,String>>> agentsList = client.globalcontroller.get_agent_list(dst_region);
-        System.out.println(agentsList);
-
-        Map<String,List<Map<String,String>>> agentResources = client.globalcontroller.get_agent_resource(dst_region, dst_agent);
-        System.out.println(agentResources);
-
-        Map<String,List<Map<String,String>>> pluginResources = client.globalcontroller.get_plugin_list();
-        System.out.println(pluginResources);
-
-        Map<String, List<Map<String,String>>> regionList = client.globalcontroller.get_region_resources(dst_region);
-        System.out.println(regionList);
-
-         Map<String, List<Map<String,String>>> regionList = client.globalcontroller.get_region_list();
-        System.out.println(regionList);
-
          */
 
         /*
@@ -143,8 +96,10 @@ public class Launcher {
 
          */
 
-        //client.close();
-
+            //client.close();
+        } else {
+            System.out.println("Could not connect to remote.");
+        }
     }
 
 }

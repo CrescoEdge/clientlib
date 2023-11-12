@@ -10,21 +10,24 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
+import java.net.Socket;
 import java.net.URI;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Map;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @WebSocket
 public class WSInterface
 {
-    private boolean isActive = false;
-
+    //private boolean isActive = false;
+    private AtomicBoolean isActive = new AtomicBoolean(false);
     private String regionName;
     private String agentName;
     private String pluginName;
-    private boolean isReconnect = true;
+    private AtomicBoolean isReconnect = new AtomicBoolean(true);
+    private AtomicBoolean inConnect = new AtomicBoolean(false);
     private final Logger LOG = Log.getLogger(WSInterface.class);
     private HttpClient http;
     private WebSocketClient client;
@@ -33,6 +36,8 @@ public class WSInterface
     private Map<String,String> wsConfig;
 
     private WSCallback wsCallback;
+
+    private  int connectionTimeout;
 
     public WSInterface(Map<String,String> wsConfig, WSCallback wsCallback) {
         this.wsConfig = wsConfig;
@@ -66,71 +71,96 @@ public class WSInterface
         }
     }
 
+    public boolean serverListening(String host, int port)
+    {
+        Socket s = null;
+        try
+        {
+            s = new Socket(host, port);
+            return true;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
+        finally
+        {
+            if(s != null)
+                try {s.close();}
+                catch(Exception e){}
+        }
+    }
+
     public boolean connect() {
 
         boolean isConnected = false;
 
+        if(!inConnect.get()) {
+            inConnect.set(true);
+            if (wsConfig != null) {
 
-        if(wsConfig != null) {
-            if(wsConfig.containsKey("host") && wsConfig.containsKey("port") && wsConfig.containsKey("service_key") && wsConfig.containsKey("api_path")) {
+                if (wsConfig.containsKey("host") && wsConfig.containsKey("port") && wsConfig.containsKey("service_key") && wsConfig.containsKey("api_path")) {
 
-                String url = "wss://" + wsConfig.get("host") + ":" + wsConfig.get("port") + wsConfig.get("api_path");
+                    if (serverListening(wsConfig.get("host"), Integer.parseInt(wsConfig.get("port")))) {
 
-                SslContextFactory ssl = new SslContextFactory.Client();
-                ssl.setTrustAll(true);
-                ssl.setValidateCerts(false);
-                ssl.setValidatePeerCerts(false);
-                ssl.setEndpointIdentificationAlgorithm(null);
-                ssl.setIncludeProtocols("TLSv1.2", "TLSv1.3");
-                //ssl.setEndpointIdentificationAlgorithm("HTTPS");
-                http = new HttpClient(ssl);
-                //http = new HttpClient();
-                client = new WebSocketClient(http);
+                        String url = "wss://" + wsConfig.get("host") + ":" + wsConfig.get("port") + wsConfig.get("api_path");
 
-                ClientUpgradeRequest request = new ClientUpgradeRequest();
-                request.setHeader("cresco_service_key",wsConfig.get("service_key"));
+                        SslContextFactory ssl = new SslContextFactory.Client();
+                        ssl.setTrustAll(true);
+                        ssl.setValidateCerts(false);
+                        ssl.setValidatePeerCerts(false);
+                        ssl.setEndpointIdentificationAlgorithm(null);
+                        ssl.setIncludeProtocols("TLSv1.2", "TLSv1.3");
+                        //ssl.setEndpointIdentificationAlgorithm("HTTPS");
+                        http = new HttpClient(ssl);
+                        //http = new HttpClient();
+                        client = new WebSocketClient(http);
 
+                        ClientUpgradeRequest request = new ClientUpgradeRequest();
+                        request.setHeader("cresco_service_key", wsConfig.get("service_key"));
 
-                try
-                {
-                    http.start();
-                    client.start();
+                        try {
 
-                    WSInterfaceImpl socket = new WSInterfaceImpl(new WSPassThroughCallback());
-                    Future<Session> fut = client.connect(socket, URI.create(url), request);
+                            http.start();
+                            client.start();
 
-                    session = fut.get();
-                    //Set region and agent info
-                    setAgentInfo(http);
-                    //set connected
-                    isConnected = session.isOpen();
+                            WSInterfaceImpl socket = new WSInterfaceImpl(new WSPassThroughCallback());
+                            Future<Session> fut = client.connect(socket, URI.create(url), request);
 
+                            session = fut.get();
+                            //Set region and agent info
+                            setAgentInfo(http);
+                            //set connected
+                            isConnected = session.isOpen();
 
-
+                        } catch (Throwable t) {
+                            LOG.warn(t);
+                        } finally {
+                            //stop(http);
+                            //stop(client);
+                        }
+                    } else {
+                        inConnect.set(false);
+                        LOG.warn("connect(): Remote server is not listening at host:" + wsConfig.get("host") + " port:" + wsConfig.get("port"));
+                    }
+                } else {
+                    inConnect.set(false);
+                    LOG.warn("connect(): wsConfig missing one or more key [host, port, api_path, service_key]");
                 }
-                catch (Throwable t)
-                {
-                    LOG.warn(t);
-                }
-                finally
-                {
-                    //stop(http);
-                    //stop(client);
-                }
-
             } else {
-                LOG.warn("connect(): wsConfig missing one or more key [host, port, api_path, service_key]");
+                inConnect.set(false);
+                LOG.warn("connect(): wsConfig == null");
             }
-        } else {
-            LOG.warn("connect(): wsConfig == null");
         }
 
         return isConnected;
     }
 
-    public void start() {
+    public void start(int timeout) {
 
-        //create new thread try and start continuously
+        System.out.println(isActive.get() + " " + isReconnect.get());
+        this.connectionTimeout = timeout;
+
         new Thread(){
             public void run() {
                 try {
@@ -138,11 +168,10 @@ public class WSInterface
                     //clear out previous
                     clearWS();
 
-
-                    while ((isReconnect) && (!isActive)) {
+                    while ((isReconnect.get()) && (!isActive.get())) {
                         try {
                             connect();
-                            Thread.sleep(5000);
+                            Thread.sleep(1000);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
@@ -158,15 +187,15 @@ public class WSInterface
     }
 
     public boolean getIsActive() {
-        return isActive;
+        return isActive.get();
     }
 
     public boolean getIsReconnect() {
-        return isReconnect;
+        return isReconnect.get();
     }
 
     public void setIsReconnect(boolean isReconnect) {
-        this.isReconnect = isReconnect;
+        this.isReconnect.set(isReconnect);
     }
 
     public boolean connected() {
@@ -183,13 +212,13 @@ public class WSInterface
 
 
     public void close() {
-        isReconnect = false;
+        isReconnect.set(false);
         clearWS();
     }
 
     private void clearWS() {
 
-        isActive = false;
+        isActive.set(false);
         if(client != null) {
             stopLC(client);
         }
@@ -212,7 +241,8 @@ public class WSInterface
     class WSPassThroughCallback implements WSCallback {
         @Override
         public void onConnect(Session sess) {
-            isActive = true;
+            isActive.set(true);
+            inConnect.set(false);
             wsCallback.onConnect(sess);
         }
 
@@ -230,11 +260,13 @@ public class WSInterface
         public void onClose(int statusCode, String reason) {
             wsCallback.onClose(statusCode,reason);
 
-            if(isReconnect) {
-                if(isActive) {
-                    start();
+            if(isReconnect.get()) {
+                if(isActive.get()) {
+                    isActive.set(false);
+                    start(connectionTimeout);
                 }
             }
+
         }
     }
 }

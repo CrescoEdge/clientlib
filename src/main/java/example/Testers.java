@@ -2,6 +2,8 @@ package example;
 
 import com.google.gson.Gson;
 import crescoclient.CrescoClient;
+import crescoclient.dataplane.DataPlaneInterface;
+import crescoclient.logstreamer.LogStreamerInterface;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -109,6 +111,87 @@ public class Testers {
             ex.printStackTrace();
         }
         return reply;
+    }
+
+    public void getResourcesAndLists() {
+
+        String dst_region = client.api.getGlobalRegion();
+        String dst_agent = client.api.getGlobalAgent();
+
+        Map<String, List<Map<String,String>>> agentsList = client.globalcontroller.get_agent_list(dst_region);
+        System.out.println("Agent List: " + agentsList);
+
+        //Map<String,List<Map<String,String>>> agentResources = client.globalcontroller.get_agent_resource(dst_region, dst_agent);
+        //System.out.println("Agent Resources: " + agentResources);
+
+        Map<String,List<Map<String,String>>> pluginResources = client.globalcontroller.get_plugin_list();
+        System.out.println("Plugin Resources: " + pluginResources);
+
+        //Map<String, List<Map<String,String>>> regionResourcesList = client.globalcontroller.get_region_resources(dst_region);
+        //System.out.println("Regional Resources: " + regionResourcesList);
+
+        Map<String, List<Map<String,String>>> regionList = client.globalcontroller.get_region_list();
+        System.out.println("Region List: " + regionList);
+
+    }
+
+    public void logStreaming() {
+
+        LogStreamerInterface ls = client.getLogStreamer();
+        ls.start();
+        while (!ls.connected()) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        String dst_region = client.api.getGlobalRegion();
+        String dst_agent = client.api.getGlobalAgent();
+
+        ls.update_config(dst_region, dst_agent);
+
+        String identKey = "stream_name";
+        String identId = "1234";
+        //String streamQuery = "stream_name='" + identId + "'";
+        Map<String, String> configDB = new HashMap<>();
+        configDB.put("ident_key", identKey);
+        configDB.put("ident_id", identId);
+        //configDB.put("stream_query",identKey + "='" + identId + "' and type='" + "outgoing" + "'");
+        configDB.put("io_type_key", "type");
+        configDB.put("output_id", "output");
+        configDB.put("input_id", "output");
+        Gson gson = new Gson();
+
+        String jsonConfig = gson.toJson(configDB);
+
+        DataPlaneInterface dataPlane = client.getDataPlane(jsonConfig);
+        dataPlane.start();
+
+        int count = 25;
+
+        for (int i = 0; i < count; i++) {
+            try {
+                Thread.sleep(1000);
+                System.out.println("count: " + i);
+                //System.out.println("Incoming: " + ls.recv());
+                if (i < 5) {
+                    dataPlane.send(String.valueOf(i));
+                } else {
+                    dataPlane.close();
+                    ls.close();
+                    client.close();
+                }
+
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        System.out.println("EXIT");
+        ls.close();
+
     }
 
 }

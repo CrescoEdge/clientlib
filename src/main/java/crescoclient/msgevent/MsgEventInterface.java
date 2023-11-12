@@ -63,8 +63,8 @@ public class MsgEventInterface {
         return responce;
     }
 
-    public void start() {
-        wsInterface.start();
+    public void start(int timeout) {
+        wsInterface.start(timeout);
         //wsInterface.connect();
     }
 
