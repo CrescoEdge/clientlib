@@ -4,9 +4,15 @@ import com.google.gson.Gson;
 import crescoclient.*;
 import crescoclient.dataplane.DataPlaneInterface;
 import crescoclient.logstreamer.LogStreamerInterface;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.api.Response;
+import org.eclipse.jetty.client.util.BufferingResponseListener;
+import org.eclipse.jetty.http.HttpMethod;
+import org.eclipse.jetty.http.HttpVersion;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -16,16 +22,16 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class Launcher {
 
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws Exception {
 
-
-        String host = "localhost";
+        String host = "128.163.202.50";
         int port = 8282;
-        String service_key = "8675309";
+        String service_key = "c988701a-5f2a-43ac-b915-156049c5d1ee";
 
         //String dst_region = "dp";
         //String dst_agent = "agent-c988701a-5f2a-43ac-b915-156049c5d1ee";
@@ -43,6 +49,13 @@ public class Launcher {
             String dst_agent = client.api.getGlobalAgent();
             System.out.println("global region: " + dst_region + " agent:" + dst_agent);
 
+            //Download this file and put it in the project folder:
+            //https://github.com/CrescoEdge/filerepo/releases/download/1.1-SNAPSHOT/filerepo-1.1-SNAPSHOT.jar
+
+            String fileRepoFile = "filerepo-1.1-SNAPSHOT.jar";
+            client.globalcontroller.upload_plugin_global(fileRepoFile);
+
+            System.exit(0);
             Testers testers = new Testers(client);
 
             System.out.println("--Start repeated testing--");

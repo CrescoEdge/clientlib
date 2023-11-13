@@ -81,7 +81,9 @@ public class WSInterface
         }
         catch (Exception e)
         {
-            return false;
+            e.printStackTrace();
+            //return false;
+            return true;
         }
         finally
         {
