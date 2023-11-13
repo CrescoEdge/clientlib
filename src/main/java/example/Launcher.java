@@ -53,17 +53,16 @@ public class Launcher {
 
             //Location of plugin
             String fileRepoFile = "filerepo-1.1-SNAPSHOT.jar";
+            String pipelineName = "FileRepoExample";
 
             //deploy a pair of filerepo plugins as an application
-            String fileRepoAppId = testers.deployFileRepo(fileRepoFile);
-            System.out.println(fileRepoAppId);
+            //String fileRepoAppId = testers.deployFileRepo(fileRepoFile, pipelineName);
+            //System.out.println(fileRepoAppId);
 
-            List<Map<String,String>> pipelineList = client.globalcontroller.get_pipeline_list();
-            for(Map<String,String> pipeline : pipelineList) {
-                System.out.println(pipeline);
-            }
+            String pipelineId = testers.getPipelineIdByName(pipelineName);
+            System.out.println(pipelineId);
 
-            boolean isRemoved = client.globalcontroller.remove_pipeline(pipelineList.get(0).get("pipeline_id"));
+            boolean isRemoved = client.globalcontroller.remove_pipeline(pipelineId);
             System.out.println(isRemoved);
 
             System.exit(0);

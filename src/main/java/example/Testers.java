@@ -20,8 +20,22 @@ public class Testers {
         gson = new Gson();
     }
 
+    public String getPipelineIdByName(String pipelineName) {
 
-    public String deployFileRepo(String fileRepoFile) throws InterruptedException {
+        String pipelineId = null;
+
+        List<Map<String,String>> pipelineList = client.globalcontroller.get_pipeline_list();
+        for(Map<String,String> pipeline : pipelineList) {
+            if(pipeline.get("pipeline_name").equals(pipelineName)) {
+                pipelineId = pipeline.get("pipeline_id");
+            }
+        }
+
+        return pipelineId;
+
+    }
+
+    public String deployFileRepo(String fileRepoFile, String pipelineName) throws InterruptedException {
 
         //Result of plugin upload to repo
         Map<String,String> fileRepoMap = client.globalcontroller.upload_plugin_global(fileRepoFile);
@@ -39,7 +53,7 @@ public class Testers {
 
         Map<String, Object> cadl = new HashMap<>();
         cadl.put("pipeline_id", "0");
-        cadl.put("pipeline_name", "example");
+        cadl.put("pipeline_name", pipelineName);
         List<Map<String, Object>> nodes = new ArrayList<>();
         List<Map<String, Object>> edges = new ArrayList<>();
 
