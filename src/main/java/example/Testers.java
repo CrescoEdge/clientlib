@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import crescoclient.CrescoClient;
 import crescoclient.dataplane.DataPlaneInterface;
 import crescoclient.logstreamer.LogStreamerInterface;
+import io.cresco.library.app.gPayload;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,18 +20,100 @@ public class Testers {
         gson = new Gson();
     }
 
-    public void deployFileRepo() {
 
-        //Download this file and put it in the project folder:
-        //https://github.com/CrescoEdge/filerepo/releases/download/1.1-SNAPSHOT/filerepo-1.1-SNAPSHOT.jar
+    public Map<String,String> deployFileRepo(String fileRepoFile) throws InterruptedException {
 
-        //Location of plugin
-        String fileRepoFile = "filerepo-1.1-SNAPSHOT.jar";
         //Result of plugin upload to repo
         Map<String,String> fileRepoMap = client.globalcontroller.upload_plugin_global(fileRepoFile);
+
+
+        Thread.sleep(5000);
+
         //Get details about plugin
-        String fileRepoConfigParams = client.messaging.getCompressedParam(fileRepoMap.get("configparams"));
-        System.out.println(fileRepoConfigParams);
+        String fileRepoConfigParamsString = client.messaging.getCompressedParam(fileRepoMap.get("configparams"));
+        System.out.println(fileRepoConfigParamsString);
+        //String to Map
+        Map<String,String> fileRepoConfigParams = client.messaging.getMapFromString(fileRepoConfigParamsString);
+
+        Map<String,String> reply = null;
+
+        Map<String, Object> cadl = new HashMap<>();
+        cadl.put("pipeline_id", "0");
+        cadl.put("pipeline_name", "example");
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        List<Map<String, Object>> edges = new ArrayList<>();
+
+        Map<String, Object> params0 = new HashMap<>();
+        params0.put("pluginname", fileRepoConfigParams.get("pluginname"));
+        params0.put("md5", fileRepoConfigParams.get("md5"));
+        params0.put("version", fileRepoConfigParams.get("version"));
+        params0.put("location_region", client.api.getAPIRegionName());
+        params0.put("filerepo_name", "test_repo_1");
+        params0.put("scan_dir", "/data/1");
+
+        Map<String, Object> node0 = new HashMap<>();
+        node0.put("type", "dummy");
+        node0.put("node_name", "Plugin 0");
+        node0.put("node_id", 0);
+        node0.put("isSource", false);
+        node0.put("workloadUtil", 0);
+        node0.put("params", params0);
+
+        Map<String, Object> params1 = new HashMap<>();
+        params1.put("pluginname", fileRepoConfigParams.get("pluginname"));
+        params1.put("md5", fileRepoConfigParams.get("md5"));
+        params1.put("version", fileRepoConfigParams.get("version"));
+        params1.put("location_region", client.api.getAPIRegionName());
+        params1.put("filerepo_name", "test_repo_2");
+        params1.put("scan_dir", "/data/2");
+
+        Map<String, Object> node1 = new HashMap<>();
+        node1.put("type", "dummy");
+        node1.put("node_name", "Plugin 1");
+        node1.put("node_id", 1);
+        node1.put("isSource", false);
+        node1.put("workloadUtil", 0);
+        node1.put("params", params1);
+
+        Map<String, Object> edge0 = new HashMap<>();
+        edge0.put("edge_id", 0);
+        edge0.put("node_from", 0);
+        edge0.put("node_to", 1);
+        edge0.put("params", new HashMap<>());
+
+        nodes.add(node0);
+        nodes.add(node1);
+        edges.add(edge0);
+
+        cadl.put("nodes", nodes);
+        cadl.put("edges", edges);
+
+        String message_event_type = "CONFIG";
+        Map<String, Object> message_payload = new HashMap<>();
+        message_payload.put("action", "gpipelinesubmit");
+        String json_cadl = gson.toJson(cadl);
+        System.out.println("JSON CADL START");
+        System.out.println(json_cadl);
+        System.out.println("JSON CADL END");
+
+        message_payload.put("action_gpipeline", client.messaging.setCompressedParam(json_cadl));
+        message_payload.put("action_tenantid", "0");
+
+        reply = client.messaging.global_controller_msgevent(true, message_event_type, message_payload);
+        //get pipeline id
+        String gPipelineId = reply.get("gpipeline_id");
+
+        //while(true) {
+
+            //get identifier for application
+
+            gPayload fileRepoDeployStatus = client.globalcontroller.get_pipeline_info(gPipelineId);
+            System.out.println(fileRepoDeployStatus.status_code);
+            Thread.sleep(1000);
+
+        //}
+
+        return reply;
 
     }
 

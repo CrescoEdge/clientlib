@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import crescoclient.*;
 import crescoclient.dataplane.DataPlaneInterface;
 import crescoclient.logstreamer.LogStreamerInterface;
+import io.cresco.library.app.gPayload;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.util.BufferingResponseListener;
@@ -29,7 +30,7 @@ public class Launcher {
 
     public static void main(String[] args) throws Exception {
 
-        String host = "128.163.202.50";
+        String host = "localhost";
         int port = 8282;
         String service_key = "c988701a-5f2a-43ac-b915-156049c5d1ee";
 
@@ -51,6 +52,15 @@ public class Launcher {
 
 
             Testers testers = new Testers(client);
+
+            //Download this file and put it in the project folder:
+            //https://github.com/CrescoEdge/filerepo/releases/download/1.1-SNAPSHOT/filerepo-1.1-SNAPSHOT.jar
+
+            //Location of plugin
+            String fileRepoFile = "filerepo-1.1-SNAPSHOT.jar";
+
+            //deploy a pair of filerepo plugins as an application
+            Map<String,String> fileRepoDeployResults = testers.deployFileRepo(fileRepoFile);
 
             System.exit(0);
 
