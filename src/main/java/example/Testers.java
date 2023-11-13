@@ -19,6 +19,21 @@ public class Testers {
         gson = new Gson();
     }
 
+    public void deployFileRepo() {
+
+        //Download this file and put it in the project folder:
+        //https://github.com/CrescoEdge/filerepo/releases/download/1.1-SNAPSHOT/filerepo-1.1-SNAPSHOT.jar
+
+        //Location of plugin
+        String fileRepoFile = "filerepo-1.1-SNAPSHOT.jar";
+        //Result of plugin upload to repo
+        Map<String,String> fileRepoMap = client.globalcontroller.upload_plugin_global(fileRepoFile);
+        //Get details about plugin
+        String fileRepoConfigParams = client.messaging.getCompressedParam(fileRepoMap.get("configparams"));
+        System.out.println(fileRepoConfigParams);
+
+    }
+
     public void launch_apps(String dst_region, String dst_agent, String jar_file_path, int count) {
 
         try {

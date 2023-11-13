@@ -49,14 +49,10 @@ public class Launcher {
             String dst_agent = client.api.getGlobalAgent();
             System.out.println("global region: " + dst_region + " agent:" + dst_agent);
 
-            //Download this file and put it in the project folder:
-            //https://github.com/CrescoEdge/filerepo/releases/download/1.1-SNAPSHOT/filerepo-1.1-SNAPSHOT.jar
 
-            String fileRepoFile = "filerepo-1.1-SNAPSHOT.jar";
-            client.globalcontroller.upload_plugin_global(fileRepoFile);
+            Testers testers = new Testers(client);
 
             System.exit(0);
-            Testers testers = new Testers(client);
 
             System.out.println("--Start repeated testing--");
 
