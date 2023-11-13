@@ -226,5 +226,36 @@ public class GlobalController {
         return regionlist;
     }
 
+    public boolean remove_pipeline(String pipeline_id) {
+
+        boolean isRemoved = false;
+
+        try {
+            String message_event_type = "CONFIG";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","gpipelineremove");
+            message_payload.put("action_pipelineid",pipeline_id);
+
+            Map<String,String> reply = messaging.global_controller_msgevent(true,message_event_type,message_payload);
+            isRemoved = Boolean.parseBoolean(reply.get("success"));
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        return isRemoved;
+    }
+
+    /*
+        def remove_pipeline(self, pipeline_id):
+
+        message_event_type = 'CONFIG'
+        message_payload = dict()
+        message_payload['action'] = 'gpipelineremove'
+        message_payload['action_pipelineid'] = pipeline_id
+        retry = self.messaging.global_controller_msgevent(True, message_event_type, message_payload)
+
+        return retry
+     */
 
 }

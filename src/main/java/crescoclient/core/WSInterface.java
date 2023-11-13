@@ -160,7 +160,6 @@ public class WSInterface
 
     public void start(int timeout) {
 
-        System.out.println(isActive.get() + " " + isReconnect.get());
         this.connectionTimeout = timeout;
 
         new Thread(){

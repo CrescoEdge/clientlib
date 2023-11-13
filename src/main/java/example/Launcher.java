@@ -22,6 +22,7 @@ import java.nio.file.Paths;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -34,22 +35,16 @@ public class Launcher {
         int port = 8282;
         String service_key = "c988701a-5f2a-43ac-b915-156049c5d1ee";
 
-        //String dst_region = "dp";
-        //String dst_agent = "agent-c988701a-5f2a-43ac-b915-156049c5d1ee";
-
         CrescoClient client = new CrescoClient(host,port,service_key);
         client.connect();
 
         if(client.connected()) {
 
-            System.out.println("region: " + client.api.getAPIRegionName());
-            System.out.println("agent: " + client.api.getAPIAgentName());
-            System.out.println("plugin: " + client.api.getAPIPluginName());
-
+            System.out.println("API: region: " + client.api.getAPIRegionName() + " agent: " + client.api.getAPIAgentName() + " plugin: " + client.api.getAPIPluginName());
             String dst_region = client.api.getGlobalRegion();
             String dst_agent = client.api.getGlobalAgent();
-            System.out.println("global region: " + dst_region + " agent:" + dst_agent);
-
+            System.out.println("Global Controller: region: " + dst_region + " agent:" + dst_agent);
+            System.out.println("---");
 
             Testers testers = new Testers(client);
 
@@ -60,7 +55,16 @@ public class Launcher {
             String fileRepoFile = "filerepo-1.1-SNAPSHOT.jar";
 
             //deploy a pair of filerepo plugins as an application
-            Map<String,String> fileRepoDeployResults = testers.deployFileRepo(fileRepoFile);
+            String fileRepoAppId = testers.deployFileRepo(fileRepoFile);
+            System.out.println(fileRepoAppId);
+
+            List<Map<String,String>> pipelineList = client.globalcontroller.get_pipeline_list();
+            for(Map<String,String> pipeline : pipelineList) {
+                System.out.println(pipeline);
+            }
+
+            boolean isRemoved = client.globalcontroller.remove_pipeline(pipelineList.get(0).get("pipeline_id"));
+            System.out.println(isRemoved);
 
             System.exit(0);
 

@@ -21,7 +21,7 @@ public class Testers {
     }
 
 
-    public Map<String,String> deployFileRepo(String fileRepoFile) throws InterruptedException {
+    public String deployFileRepo(String fileRepoFile) throws InterruptedException {
 
         //Result of plugin upload to repo
         Map<String,String> fileRepoMap = client.globalcontroller.upload_plugin_global(fileRepoFile);
@@ -48,6 +48,7 @@ public class Testers {
         params0.put("md5", fileRepoConfigParams.get("md5"));
         params0.put("version", fileRepoConfigParams.get("version"));
         params0.put("location_region", client.api.getAPIRegionName());
+        params0.put("location_agent", client.api.getAPIAgentName());
         params0.put("filerepo_name", "test_repo_1");
         params0.put("scan_dir", "/data/1");
 
@@ -64,6 +65,7 @@ public class Testers {
         params1.put("md5", fileRepoConfigParams.get("md5"));
         params1.put("version", fileRepoConfigParams.get("version"));
         params1.put("location_region", client.api.getAPIRegionName());
+        params1.put("location_agent", client.api.getAPIAgentName());
         params1.put("filerepo_name", "test_repo_2");
         params1.put("scan_dir", "/data/2");
 
@@ -103,17 +105,18 @@ public class Testers {
         //get pipeline id
         String gPipelineId = reply.get("gpipeline_id");
 
-        //while(true) {
+        int app_status = -1;
+
+        while(app_status != 10) {
 
             //get identifier for application
-
             gPayload fileRepoDeployStatus = client.globalcontroller.get_pipeline_info(gPipelineId);
-            System.out.println(fileRepoDeployStatus.status_code);
+            app_status = Integer.parseInt(fileRepoDeployStatus.status_code);
             Thread.sleep(1000);
 
-        //}
+        }
 
-        return reply;
+        return reply.get("gpipeline_id");
 
     }
 
