@@ -2,6 +2,7 @@ package example;
 
 import com.google.gson.Gson;
 import crescoclient.CrescoClient;
+import crescoclient.core.OnMessageCallback;
 import crescoclient.dataplane.DataPlaneInterface;
 import crescoclient.logstreamer.LogStreamerInterface;
 import io.cresco.library.app.gPayload;
@@ -51,20 +52,21 @@ public class Testers {
 
     }
 
-    public String deployFileRepo(String pipelineName, String repo_path_1, String repo_path_2) throws InterruptedException {
+    public String deployFileRepo(String pipelineName, String repo_name_1, String repo_path_1, String repo_name_2, String repo_path_2) throws InterruptedException {
 
         boolean launchRepo = true;
 
-        //1 Check if the pipeline is running
+        //Check if the pipeline is running
         String pipelineId = getPipelineIdByName(pipelineName);
 
         if(pipelineId != null) {
-
+            //get status of running pipeline
             int pipelineStatus = client.globalcontroller.get_pipeline_status(pipelineId);
 
             if (pipelineStatus == 10) {
                 launchRepo = false;
             } else {
+                //if pipeline is not in a good status remove
                 boolean isRemoved = client.globalcontroller.remove_pipeline(pipelineId);
             }
         }
@@ -102,7 +104,7 @@ public class Testers {
             params0.put("version", fileRepoConfigParams.get("version"));
             params0.put("location_region", client.api.getAPIRegionName());
             params0.put("location_agent", client.api.getAPIAgentName());
-            params0.put("filerepo_name", "test_repo_1");
+            params0.put("filerepo_name", repo_name_1);
             params0.put("scan_dir", repo_path_1);
 
             Map<String, Object> node0 = new HashMap<>();
@@ -119,7 +121,7 @@ public class Testers {
             params1.put("version", fileRepoConfigParams.get("version"));
             params1.put("location_region", client.api.getAPIRegionName());
             params1.put("location_agent", client.api.getAPIAgentName());
-            params1.put("filerepo_name", "test_repo_2");
+            params1.put("filerepo_name", repo_name_2);
             params1.put("scan_dir", repo_path_2);
 
             Map<String, Object> node1 = new HashMap<>();
@@ -143,22 +145,12 @@ public class Testers {
             cadl.put("nodes", nodes);
             cadl.put("edges", edges);
 
-            String message_event_type = "CONFIG";
-            Map<String, Object> message_payload = new HashMap<>();
-            message_payload.put("action", "gpipelinesubmit");
-            String json_cadl = gson.toJson(cadl);
-
-            System.out.println("JSON CADL START");
-            System.out.println(json_cadl);
-            System.out.println("JSON CADL END");
-
-            message_payload.put("action_gpipeline", client.messaging.setCompressedParam(json_cadl));
-            message_payload.put("action_tenantid", "0");
-
-            Map<String, String> reply = client.messaging.global_controller_msgevent(true, message_event_type, message_payload);
-            //get pipeline id
+            //Submit pipeline
+            Map<String, String> reply = client.globalcontroller.submit_pipeline("0", cadl);
+            //Get pipelineId
             pipelineId = reply.get("gpipeline_id");
-            System.out.println("PipelineId: " + pipelineId);
+
+            System.out.println("Starting PipelineId: " + pipelineId);
 
             int app_status = -1;
 
@@ -169,6 +161,7 @@ public class Testers {
                 app_status = Integer.parseInt(fileRepoDeployStatus.status_code);
                 Thread.sleep(1000);
             }
+            System.out.println("Started PipelineId: " + pipelineId);
         }
 
         return pipelineId;
@@ -404,5 +397,61 @@ public class Testers {
 
     }
 
+
+    /*
+            System.exit(0);
+
+            System.out.println("--Start repeated testing--");
+
+            int count = 0;
+            while(true) {
+                System.out.println("Count: " + count);
+                System.out.println("Client status: " + client.connected());
+                try {
+                    testers.getResourcesAndLists();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+                Thread.sleep(1000);
+                count++;
+            }
+
+             */
+
+
+    //client.close();
+
+    //Testers testers = new Testers(client);
+
+    //String dst_region = "global-region";
+    //String dst_agent = "global-controller";
+    //String jar_file_path = "/Users/cody/IdeaProjects/cepdemo/target/cepdemo-1.1-SNAPSHOT.jar";
+
+    //launch pipeline
+        /*
+        testers.launch_apps(dst_region,dst_agent,jar_file_path,1);
+        String pipeline_id = client.globalcontroller.get_pipeline_list().get(0).get("pipeline_id");
+        System.out.println(pipeline_id);
+        gPayload gpay = client.globalcontroller.get_pipeline_info(pipeline_id);
+        System.out.println(gpay.pipeline_name);
+        System.out.println(client.globalcontroller.get_pipeline_status(gpay.pipeline_id));
+         */
+
+        /*
+        Map<String,String> results = client.globalcontroller.upload_jar_info(jar_file_path);
+
+        Map<String,String> result_agent = client.agents.repo_pull_plugin_agent(dst_region, dst_agent, jar_file_path);
+        System.out.println(result_agent);
+
+        String configParamsString = client.messaging.getCompressedParam(results.get("configparams"));
+        Map<String,String> configparams = client.messaging.getMapFromString(configParamsString);
+
+        Map<String,String> add_reply = client.agents.add_plugin_agent(dst_region,dst_agent,configparams,null);
+
+        String dst_plugin = add_reply.get("pluginid");
+
+        Map<String,String> remove_reply = client.agents.remove_plugin_agent(dst_region,dst_agent,dst_plugin);
+
+         */
 
 }

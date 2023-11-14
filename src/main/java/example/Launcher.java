@@ -2,6 +2,7 @@ package example;
 
 import com.google.gson.Gson;
 import crescoclient.*;
+import crescoclient.core.OnMessageCallback;
 import crescoclient.dataplane.DataPlaneInterface;
 import crescoclient.logstreamer.LogStreamerInterface;
 import io.cresco.library.app.gPayload;
@@ -55,66 +56,49 @@ public class Launcher {
 
             //Location of plugin
             String pipelineName = "FileRepoExample";
-            String repo_path_1 = "/data/1";
-            String repo_path_2 = "/data/2";
+            String repo_name_1 = "test_repo_1";
+            String repo_name_2 = "test_repo_2";
+            //String repo_path_1 = "/data/1";
+            //String repo_path_2 = "/data/2";
+            String repo_path_1 = "/Users/cody/IdeaProjects/agent/data/1";
+            String repo_path_2 = "/Users/cody/IdeaProjects/agent/data/2";
 
             //deploy a pair of filerepo plugins as an application
-            String fileRepoAppId = testers.deployFileRepo(pipelineName, repo_path_1, repo_path_2);
+            String fileRepoAppId = testers.deployFileRepo(pipelineName, repo_name_1, repo_path_1, repo_name_2, repo_path_2);
 
-            System.exit(0);
+            class RepoPrinter implements OnMessageCallback {
 
-            System.out.println("--Start repeated testing--");
+                int lastTransferId = -1;
+                @Override
+                public void onMessage(String msg) {
 
-            int count = 0;
-            while(true) {
-                System.out.println("Count: " + count);
-                System.out.println("Client status: " + client.connected());
-                try {
-                    testers.getResourcesAndLists();
-                } catch (Exception ex) {
-                    ex.printStackTrace();
+                    Map<String,String> repoMap = client.messaging.getMapFromString(msg);
+                    String repoRegionId = repoMap.get("repo_plugin_id");
+                    String repoAgentId = repoMap.get("repo_agent_id");
+                    String repoPluginId = repoMap.get("repo_plugin_id");
+                    String repoName = repoMap.get("filerepo_name");
+                    int incomingTransferId = Integer.parseInt(repoMap.get("transfer_id"));
+                    if(lastTransferId != incomingTransferId){
+                        System.out.println("UPDATED: " + repoMap);
+                        lastTransferId = incomingTransferId;
+                    }
+
                 }
-                Thread.sleep(1000);
-                count++;
             }
 
+            String queryStringRepo1 = "filerepo_name='" + repo_name_1 + "' AND broadcast";
+            DataPlaneInterface dataPlaneRepo1 = client.getDataPlane(queryStringRepo1, new RepoPrinter());
+            dataPlaneRepo1.start();
 
-            //client.close();
+            String queryStringRepo2 = "filerepo_name='" + repo_name_2 + "' AND broadcast";
+            DataPlaneInterface dataPlaneRepo2 = client.getDataPlane(queryStringRepo2, new RepoPrinter());
+            dataPlaneRepo2.start();
 
-            //Testers testers = new Testers(client);
 
-            //String dst_region = "global-region";
-            //String dst_agent = "global-controller";
-            //String jar_file_path = "/Users/cody/IdeaProjects/cepdemo/target/cepdemo-1.1-SNAPSHOT.jar";
+            while(true) {
+                Thread.sleep(1000);
+            }
 
-            //launch pipeline
-        /*
-        testers.launch_apps(dst_region,dst_agent,jar_file_path,1);
-        String pipeline_id = client.globalcontroller.get_pipeline_list().get(0).get("pipeline_id");
-        System.out.println(pipeline_id);
-        gPayload gpay = client.globalcontroller.get_pipeline_info(pipeline_id);
-        System.out.println(gpay.pipeline_name);
-        System.out.println(client.globalcontroller.get_pipeline_status(gpay.pipeline_id));
-         */
-
-        /*
-        Map<String,String> results = client.globalcontroller.upload_jar_info(jar_file_path);
-
-        Map<String,String> result_agent = client.agents.repo_pull_plugin_agent(dst_region, dst_agent, jar_file_path);
-        System.out.println(result_agent);
-
-        String configParamsString = client.messaging.getCompressedParam(results.get("configparams"));
-        Map<String,String> configparams = client.messaging.getMapFromString(configParamsString);
-
-        Map<String,String> add_reply = client.agents.add_plugin_agent(dst_region,dst_agent,configparams,null);
-
-        String dst_plugin = add_reply.get("pluginid");
-
-        Map<String,String> remove_reply = client.agents.remove_plugin_agent(dst_region,dst_agent,dst_plugin);
-
-         */
-
-            //client.close();
         } else {
             System.out.println("Could not connect to remote.");
         }

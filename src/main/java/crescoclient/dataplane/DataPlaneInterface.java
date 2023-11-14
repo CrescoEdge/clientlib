@@ -52,7 +52,9 @@ public class DataPlaneInterface {
         wsConfig.put("api_path","/api/dataplane");
         wsConfig.put("stream_query", streamQuery);
 
+        this.onMessageCallback = onMessageCallback;
         wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
+
         gson = new Gson();
     }
 

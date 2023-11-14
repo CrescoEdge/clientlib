@@ -226,6 +226,43 @@ public class GlobalController {
         return regionlist;
     }
 
+    /*
+        def submit_pipeline(self, cadl):
+
+        message_event_type = 'CONFIG'
+        message_payload = dict()
+        message_payload['action'] = 'gpipelinesubmit'
+        message_payload['action_gpipeline'] = compress_param(json.dumps(cadl))
+        message_payload['action_tenantid'] = '0'
+
+        retry = self.messaging.global_controller_msgevent(True, message_event_type, message_payload)
+        # returns status and gpipeline_id
+        return retry
+     */
+
+    public Map<String, String> submit_pipeline(String tenantId, Map<String, Object> cadl) {
+
+        Map<String, String> reply = null;
+
+        try {
+
+            String json_cadl = gson.toJson(cadl);
+
+            String message_event_type = "CONFIG";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","gpipelinesubmit");
+            message_payload.put("action_tenantid",tenantId);
+            message_payload.put("action_gpipeline", messaging.setCompressedParam(json_cadl));
+
+            reply = messaging.global_controller_msgevent(true, message_event_type, message_payload);
+
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        return reply;
+    }
     public boolean remove_pipeline(String pipeline_id) {
 
         boolean isRemoved = false;
@@ -245,17 +282,5 @@ public class GlobalController {
 
         return isRemoved;
     }
-
-    /*
-        def remove_pipeline(self, pipeline_id):
-
-        message_event_type = 'CONFIG'
-        message_payload = dict()
-        message_payload['action'] = 'gpipelineremove'
-        message_payload['action_pipelineid'] = pipeline_id
-        retry = self.messaging.global_controller_msgevent(True, message_event_type, message_payload)
-
-        return retry
-     */
 
 }
