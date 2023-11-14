@@ -6,13 +6,17 @@ import crescoclient.dataplane.DataPlaneInterface;
 import crescoclient.logstreamer.LogStreamerInterface;
 import io.cresco.library.app.gPayload;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.util.BufferingResponseListener;
+import org.eclipse.jetty.client.util.InputStreamResponseListener;
 import org.eclipse.jetty.http.HttpMethod;
+import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.http.HttpVersion;
+import org.eclipse.jetty.util.IO;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -31,6 +35,7 @@ public class Launcher {
 
     public static void main(String[] args) throws Exception {
 
+
         String host = "localhost";
         int port = 8282;
         String service_key = "c988701a-5f2a-43ac-b915-156049c5d1ee";
@@ -48,22 +53,13 @@ public class Launcher {
 
             Testers testers = new Testers(client);
 
-            //Download this file and put it in the project folder:
-            //https://github.com/CrescoEdge/filerepo/releases/download/1.1-SNAPSHOT/filerepo-1.1-SNAPSHOT.jar
-
             //Location of plugin
-            String fileRepoFile = "filerepo-1.1-SNAPSHOT.jar";
             String pipelineName = "FileRepoExample";
+            String repo_path_1 = "/data/1";
+            String repo_path_2 = "/data/2";
 
             //deploy a pair of filerepo plugins as an application
-            //String fileRepoAppId = testers.deployFileRepo(fileRepoFile, pipelineName);
-            //System.out.println(fileRepoAppId);
-
-            String pipelineId = testers.getPipelineIdByName(pipelineName);
-            System.out.println(pipelineId);
-
-            boolean isRemoved = client.globalcontroller.remove_pipeline(pipelineId);
-            System.out.println(isRemoved);
+            String fileRepoAppId = testers.deployFileRepo(pipelineName, repo_path_1, repo_path_2);
 
             System.exit(0);
 
