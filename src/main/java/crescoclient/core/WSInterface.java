@@ -117,7 +117,8 @@ public class WSInterface
                         http = new HttpClient(ssl);
                         //http = new HttpClient();
                         client = new WebSocketClient(http);
-
+                        //no idle timeout
+                        client.getPolicy().setIdleTimeout(0);
                         ClientUpgradeRequest request = new ClientUpgradeRequest();
                         request.setHeader("cresco_service_key", wsConfig.get("service_key"));
 
