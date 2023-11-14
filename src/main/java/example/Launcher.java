@@ -36,7 +36,6 @@ public class Launcher {
 
     public static void main(String[] args) throws Exception {
 
-
         String host = "localhost";
         int port = 8282;
         String service_key = "c988701a-5f2a-43ac-b915-156049c5d1ee";
@@ -73,7 +72,7 @@ public class Launcher {
                 public void onMessage(String msg) {
 
                     Map<String,String> repoMap = client.messaging.getMapFromString(msg);
-                    String repoRegionId = repoMap.get("repo_plugin_id");
+                    String repoRegionId = repoMap.get("repo_region_id");
                     String repoAgentId = repoMap.get("repo_agent_id");
                     String repoPluginId = repoMap.get("repo_plugin_id");
                     String repoName = repoMap.get("filerepo_name");
@@ -81,6 +80,15 @@ public class Launcher {
                     if(lastTransferId != incomingTransferId){
                         System.out.println("UPDATED: " + repoMap);
                         lastTransferId = incomingTransferId;
+
+                        String message_event_type = "EXEC";
+                        Map<String, Object> message_payload = new HashMap<>();
+                        message_payload.put("action", "getrepofilelist");
+                        message_payload.put("repo_name",repoName);
+                        Map<String,String> reply = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, repoRegionId, repoAgentId, repoPluginId);
+                        String blah = client.messaging.getCompressedParam(reply.get("repofilelist"));
+                        System.out.println("Repo file list: \n" + blah);
+
                     }
 
                 }
