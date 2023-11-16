@@ -21,6 +21,7 @@ public class Messaging {
     private Type maptype = new TypeToken<Map<String, String>>(){}.getType();
     private Type mapListMapType = new TypeToken<Map<String, List<Map<String, String>>>>(){}.getType();
 
+    private Type listMapType = new TypeToken<List<Map<String, String>>>(){}.getType();
 
     public Messaging(MsgEventInterface ws_interface) {
         this.ws_interface = ws_interface;
@@ -351,6 +352,10 @@ public class Messaging {
 
     public Map<String,List<Map<String,String>>> getMapListMapFromString(String mapListMapString) {
         return gson.fromJson(mapListMapString,mapListMapType);
+    }
+
+    public List<Map<String,String>> getListMapFromString(String listMapString) {
+        return gson.fromJson(listMapString,listMapType);
     }
 
 }

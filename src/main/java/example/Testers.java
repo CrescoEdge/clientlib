@@ -273,7 +273,7 @@ public class Testers {
         //Map<String,List<Map<String,String>>> agentResources = client.globalcontroller.get_agent_resource(dst_region, dst_agent);
         //System.out.println("Agent Resources: " + agentResources);
 
-        Map<String,List<Map<String,String>>> pluginResources = client.globalcontroller.get_plugin_list();
+        Map<String,List<Map<String,String>>> pluginResources = client.globalcontroller.get_repo_plugins();
         System.out.println("Plugin Resources: " + pluginResources);
 
         //Map<String, List<Map<String,String>>> regionResourcesList = client.globalcontroller.get_region_resources(dst_region);

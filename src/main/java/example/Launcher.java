@@ -65,7 +65,9 @@ public class Launcher {
             //String info = new String(client.messaging.getCompressedDataParam(responce.get("log")));
             //Map<String,List<Map<String,String>>> regionList = client.globalcontroller.get_region_list();
             //System.out.println(regionList);
-
+            //Map<String,String> responce = client.agents.get_log(dst_region, dst_agent);
+            //List<Map<String,String>> responce = client.globalcontroller.get_plugin_list(dst_region, dst_agent);
+            //System.out.println(responce);
 
             //System.exit(0);
             Testers testers = new Testers(client);

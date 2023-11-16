@@ -98,6 +98,26 @@ public class GlobalController {
         return agentlist;
     }
 
+    public List<Map<String,String>> get_plugin_list(String dst_region, String dst_agent) {
+
+        List<Map<String,String>> pluginlist = null;
+        try {
+            String message_event_type = "CONFIG";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","pluginlist");
+
+
+            Map<String,String> reply = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
+            String pluginlistStr = messaging.getCompressedParam(reply.get("plugin_list"));
+            pluginlist = messaging.getListMapFromString(pluginlistStr);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        return pluginlist;
+    }
+
     public Map<String,List<Map<String,String>>> get_agent_resource(String dst_region, String dst_agent) {
         Map<String,List<Map<String,String>>> agentlist = null;
         try {
@@ -122,7 +142,7 @@ public class GlobalController {
         return agentlist;
     }
 
-    public Map<String,List<Map<String,String>>> get_plugin_list() {
+    public Map<String,List<Map<String,String>>> get_repo_plugins() {
         Map<String,List<Map<String,String>>> agentlist = null;
         try {
             String message_event_type = "EXEC";
