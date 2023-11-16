@@ -263,6 +263,29 @@ public class GlobalController {
 
         return reply;
     }
+
+    public Map<String, String> submit_pipeline(String tenantId, String json_cadl) {
+
+        Map<String, String> reply = null;
+
+        try {
+            
+            String message_event_type = "CONFIG";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","gpipelinesubmit");
+            message_payload.put("action_tenantid",tenantId);
+            message_payload.put("action_gpipeline", messaging.setCompressedParam(json_cadl));
+
+            reply = messaging.global_controller_msgevent(true, message_event_type, message_payload);
+
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        return reply;
+    }
+
     public boolean remove_pipeline(String pipeline_id) {
 
         boolean isRemoved = false;
