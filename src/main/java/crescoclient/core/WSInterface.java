@@ -119,6 +119,8 @@ public class WSInterface
                         client = new WebSocketClient(http);
                         //no idle timeout
                         client.getPolicy().setIdleTimeout(0);
+                        client.getPolicy().setMaxTextMessageSize(10000000);
+                        client.getPolicy().setMaxBinaryMessageSize(10000000);
                         ClientUpgradeRequest request = new ClientUpgradeRequest();
                         request.setHeader("cresco_service_key", wsConfig.get("service_key"));
 

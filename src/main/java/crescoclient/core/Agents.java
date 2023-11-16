@@ -218,4 +218,22 @@ public class Agents {
         return responce;
     }
 
+    public Map<String,String> get_log(String dst_region, String dst_agent) {
+        Map<String,String> responce = null;
+        try {
+
+            String message_event_type = "EXEC";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","getlog");
+            message_payload.put("action_inmessage","true");
+
+            responce = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
+
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return responce;
+    }
+
 }

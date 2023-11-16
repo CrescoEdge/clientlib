@@ -267,12 +267,51 @@ public class Messaging {
         }
     }
 
+    public byte[] getDataParam(String value) {
+        byte[] byteArray = null;
+        try {
+            if (value != null) {
+                //byteArray = DatatypeConverter.parseBase64Binary(value);
+                byteArray = Base64.getDecoder().decode(value);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return byteArray;
+    }
+
+    public byte[] dataDecompress(byte[] compressedData) {
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(
+                compressedData);
+
+        try {
+            GZIPInputStream gzipInputStream = new GZIPInputStream(
+                    byteArrayInputStream);
+
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = gzipInputStream.read(buffer)) != -1) {
+                byteArrayOutputStream.write(buffer, 0, length);
+            }
+            gzipInputStream.close();
+            return byteArrayOutputStream.toByteArray();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public String setCompressedParam(String inputString) {
         return Base64.getEncoder().encodeToString(stringCompress(inputString));
     }
 
     public String setCompressedDataParam(byte[] value) {
         return Base64.getEncoder().encodeToString(value);
+    }
+
+    public byte[] getCompressedDataParam(String value) {
+        return dataDecompress(getDataParam(value));
     }
 
     public byte[] stringCompress(String str) {

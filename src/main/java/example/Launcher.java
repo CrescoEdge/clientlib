@@ -53,13 +53,19 @@ public class Launcher {
             System.out.println("Global Controller: region: " + dst_region + " agent:" + dst_agent);
             System.out.println("---");
 
-            String pipeline_id = client.globalcontroller.get_pipeline_list().get(0).get("pipeline_id");
+            //String pipeline_id = client.globalcontroller.get_pipeline_list().get(0).get("pipeline_id");
 
             //System.out.println(gson.toJson(client.globalcontroller.get_pipeline_info(resource_id)));
             //String inode_id = "inode-ea7139fb-389d-4d59-a9e2-e749a5b22e86";
             //Map<String, String> addi = client.globalcontroller.pipeline_getisassignmentinfo(inode_id, pipeline_id);
-            Map<String, String> addi = client.globalcontroller.get_pipeline_export(pipeline_id);
-            System.out.println(client.messaging.getCompressedParam(addi.get("gpipeline")));
+            //Map<String, String> addi = client.globalcontroller.get_pipeline_export(pipeline_id);
+            //System.out.println(client.messaging.getCompressedParam(addi.get("gpipeline")));
+
+            Map<String,String> responce = client.agents.get_log(dst_region, dst_agent);
+            String info = new String(client.messaging.getCompressedDataParam(responce.get("log")));
+
+            System.out.println(info);
+
 
             System.exit(0);
             Testers testers = new Testers(client);
