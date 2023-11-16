@@ -67,6 +67,7 @@ public class Launcher {
             //System.out.println(regionList);
             //Map<String,String> responce = client.agents.get_log(dst_region, dst_agent);
             //List<Map<String,String>> responce = client.globalcontroller.get_plugin_list(dst_region, dst_agent);
+            //Map<String,List<Map<String,String>>> responce = client.globalcontroller.get_plugin_repo_list();
             //System.out.println(responce);
 
             //System.exit(0);
