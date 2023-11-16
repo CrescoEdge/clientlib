@@ -226,19 +226,6 @@ public class GlobalController {
         return regionlist;
     }
 
-    /*
-        def submit_pipeline(self, cadl):
-
-        message_event_type = 'CONFIG'
-        message_payload = dict()
-        message_payload['action'] = 'gpipelinesubmit'
-        message_payload['action_gpipeline'] = compress_param(json.dumps(cadl))
-        message_payload['action_tenantid'] = '0'
-
-        retry = self.messaging.global_controller_msgevent(True, message_event_type, message_payload)
-        # returns status and gpipeline_id
-        return retry
-     */
 
     public Map<String, String> submit_pipeline(String tenantId, Map<String, Object> cadl) {
 
@@ -269,7 +256,7 @@ public class GlobalController {
         Map<String, String> reply = null;
 
         try {
-            
+
             String message_event_type = "CONFIG";
             Map<String,Object> message_payload = new HashMap<>();
             message_payload.put("action","gpipelinesubmit");
@@ -286,6 +273,48 @@ public class GlobalController {
         return reply;
     }
 
+    public Map<String, String> get_pipeline_isassignmentinfo(String inode_id, String resource_id) {
+
+        Map<String, String> reply = null;
+
+        try {
+
+            String message_event_type = "EXEC";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","getisassignmentinfo");
+            message_payload.put("action_inodeid", inode_id);
+            message_payload.put("action_resourceid", resource_id);
+            System.out.println(message_payload);
+            reply = messaging.global_controller_msgevent(true, message_event_type, message_payload);
+
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        return reply;
+    }
+
+    public Map<String, String> get_pipeline_export(String pipeline_id) {
+
+        Map<String, String> reply = null;
+
+        try {
+
+            String message_event_type = "EXEC";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","getgpipelineexport");
+            message_payload.put("action_pipelineid", pipeline_id);
+            reply = messaging.global_controller_msgevent(true, message_event_type, message_payload);
+
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        return reply;
+    }
+    
     public boolean remove_pipeline(String pipeline_id) {
 
         boolean isRemoved = false;

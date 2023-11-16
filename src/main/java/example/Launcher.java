@@ -33,8 +33,10 @@ import java.util.concurrent.TimeUnit;
 
 public class Launcher {
 
-
+    public static Gson gson;
     public static void main(String[] args) throws Exception {
+
+        gson = new Gson();
 
         String host = "localhost";
         int port = 8282;
@@ -51,6 +53,15 @@ public class Launcher {
             System.out.println("Global Controller: region: " + dst_region + " agent:" + dst_agent);
             System.out.println("---");
 
+            String pipeline_id = client.globalcontroller.get_pipeline_list().get(0).get("pipeline_id");
+
+            //System.out.println(gson.toJson(client.globalcontroller.get_pipeline_info(resource_id)));
+            //String inode_id = "inode-ea7139fb-389d-4d59-a9e2-e749a5b22e86";
+            //Map<String, String> addi = client.globalcontroller.pipeline_getisassignmentinfo(inode_id, pipeline_id);
+            Map<String, String> addi = client.globalcontroller.get_pipeline_export(pipeline_id);
+            System.out.println(client.messaging.getCompressedParam(addi.get("gpipeline")));
+
+            System.exit(0);
             Testers testers = new Testers(client);
 
             //Location of plugin
