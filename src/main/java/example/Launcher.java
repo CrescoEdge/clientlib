@@ -61,13 +61,13 @@ public class Launcher {
             //Map<String, String> addi = client.globalcontroller.get_pipeline_export(pipeline_id);
             //System.out.println(client.messaging.getCompressedParam(addi.get("gpipeline")));
 
-            Map<String,String> responce = client.agents.get_log(dst_region, dst_agent);
-            String info = new String(client.messaging.getCompressedDataParam(responce.get("log")));
+            //Map<String,String> responce = client.agents.get_log(dst_region, dst_agent);
+            //String info = new String(client.messaging.getCompressedDataParam(responce.get("log")));
+            //Map<String,List<Map<String,String>>> regionList = client.globalcontroller.get_region_list();
+            //System.out.println(regionList);
 
-            System.out.println(info);
 
-
-            System.exit(0);
+            //System.exit(0);
             Testers testers = new Testers(client);
 
             //Location of plugin
