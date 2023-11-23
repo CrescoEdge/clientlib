@@ -73,6 +73,123 @@ public class Launcher {
             //System.exit(0);
             Testers testers = new Testers(client);
 
+
+            String pipelineName = "sTunnelExample";
+            //String sTunnelAppId = testers.getPipelineIdByName(pipelineName);
+            String sTunnelAppId = testers.deploySTunnel(pipelineName);
+            //String sTunnelAppId = "resource-13d93383-8687-4b5c-8325-31e57445bfb3";
+            gPayload st = client.globalcontroller.get_pipeline_info(sTunnelAppId);
+            //System.out.println(st.nodes.get(0).node_id);
+            System.out.println(st.nodes.get(0).params);
+
+            String srcRegionId = st.nodes.get(0).params.get("region_id");
+            String srcAgentId = st.nodes.get(0).params.get("agent_id");
+            String srcPluginId = st.nodes.get(0).params.get("plugin_id");
+            System.out.println("region: " + srcRegionId + " agent: " + srcAgentId + " plugin: " + srcPluginId);
+
+            String tunnelId = "t0-t0-t0-t0-t0";
+
+
+
+            /*
+            String message_event_type = "EXEC";
+            Map<String, Object> message_payload = new HashMap();
+            message_payload.put("action", "listensrc");
+            message_payload.put("action_stunnel_listen_port", "9000");
+            message_payload.put("action_stunnel_id", tunnelId);
+            Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+
+            System.out.println(responce);
+             */
+
+            class RepoPrinter implements OnMessageCallback {
+
+                @Override
+                public void onMessage(String msg) {
+
+                    System.out.println("INCOMING FROM DP: " + msg);
+                    }
+
+            }
+
+            //String queryStringRepo1 = "filerepo_name='" + tunnelId + "' AND broadcast";
+            String queryStringRepo1 = "";
+            DataPlaneInterface dataPlaneRepo1 = client.getDataPlane(queryStringRepo1, new RepoPrinter());
+            dataPlaneRepo1.start();
+
+
+            String message_event_type = "CONFIG";
+            Map<String, Object> message_payload = new HashMap();
+            message_payload.put("action", "configsrctunnel");
+            message_payload.put("action_src_port", "9000");
+
+            message_payload.put("action_dst_host", "128.163.189.58");
+            message_payload.put("action_dst_port", "80");
+            //message_payload.put("action_dst_host", "128.163.202.50");
+            //message_payload.put("action_dst_port", "22");
+            //message_payload.put("action_dst_host", "localhost");
+            //message_payload.put("action_dst_port", "9001");
+            message_payload.put("action_dst_region", srcRegionId);
+            message_payload.put("action_dst_agent", srcAgentId);
+            message_payload.put("action_dst_plugin", srcPluginId);
+            Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+
+            System.out.println(responce);
+
+            //Thread.sleep(5000);
+            /*
+            String message_event_type = "EXEC";
+            Map<String, Object> message_payload = new HashMap();
+            message_payload.put("action", "listensrc");
+            message_payload.put("action_stunnel_listen_port", "9000");
+            message_payload.put("action_stunnel_id", tunnelId);
+            Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+
+            System.out.println(responce);
+
+            message_payload.clear();
+            message_payload.put("action", "listendst");
+            message_payload.put("action_stunnel_id", tunnelId);
+            message_payload.put("action_stunnel_dst_host", "128.163.189.58");
+            message_payload.put("action_stunnel_dst_port", "80");
+
+            responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+
+            System.out.println(responce);
+
+             */
+
+
+            while(true) {
+                Thread.sleep(1000);
+            }
+
+
+            /*
+            while(true) {
+                String message_event_type = "EXEC";
+                Map<String, Object> message_payload = new HashMap();
+                message_payload.put("action", "test");
+                message_payload.put("action_stunnel_id", tunnelId);
+                Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+                //System.out.println(responce);
+                Thread.sleep(5000);
+            }
+
+             */
+
+
+            //message_payload.clear();
+            //message_payload.put("action", "listendst");
+            //message_payload.put("action_stunnel_id", "t0");
+            //message_payload.put("action_stunnel_listen_port", "9000");
+            //responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+
+            //System.out.println(responce);
+
+            //client.close();
+
+            /*
             //Location of plugin
             String pipelineName = "FileRepoExample";
             String repo_name_1 = "test_repo_1";
@@ -123,9 +240,13 @@ public class Launcher {
             dataPlaneRepo2.start();
 
 
+
+
             while(true) {
                 Thread.sleep(1000);
             }
+
+             */
 
         } else {
             System.out.println("Could not connect to remote.");
