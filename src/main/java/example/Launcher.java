@@ -121,14 +121,14 @@ public class Launcher {
             String message_event_type = "CONFIG";
             Map<String, Object> message_payload = new HashMap();
             message_payload.put("action", "configsrctunnel");
-            message_payload.put("action_src_port", "9000");
+            message_payload.put("action_src_port", "5201");
 
-            message_payload.put("action_dst_host", "128.163.189.58");
-            message_payload.put("action_dst_port", "80");
+            //message_payload.put("action_dst_host", "128.163.189.58");
+            //message_payload.put("action_dst_port", "80");
             //message_payload.put("action_dst_host", "128.163.202.50");
-            //message_payload.put("action_dst_port", "22");
-            //message_payload.put("action_dst_host", "localhost");
-            //message_payload.put("action_dst_port", "9001");
+            //message_payload.put("action_dst_port", "5201");
+            message_payload.put("action_dst_host", "localhost");
+            message_payload.put("action_dst_port", "5202");
             message_payload.put("action_dst_region", srcRegionId);
             message_payload.put("action_dst_agent", srcAgentId);
             message_payload.put("action_dst_plugin", srcPluginId);
