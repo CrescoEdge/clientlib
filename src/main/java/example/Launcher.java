@@ -5,6 +5,7 @@ import crescoclient.*;
 import crescoclient.core.OnMessageCallback;
 import crescoclient.dataplane.DataPlaneInterface;
 import crescoclient.logstreamer.LogStreamerInterface;
+import io.cresco.library.app.gNode;
 import io.cresco.library.app.gPayload;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Request;
@@ -73,34 +74,37 @@ public class Launcher {
             //System.exit(0);
             Testers testers = new Testers(client);
 
-
             String pipelineName = "sTunnelExample";
+            String pipelineId = testers.getPipelineIdByName(pipelineName);
+
+            boolean isRemoved = client.globalcontroller.remove_pipeline(pipelineId);
+            //System.out.println(isRemoved);
+
+
+            //System.exit(0);
+
             //String sTunnelAppId = testers.getPipelineIdByName(pipelineName);
-            String sTunnelAppId = testers.deploySTunnel(pipelineName);
+            //String sTunnelAppId = testers.deploySingleNodeSTunnel(pipelineName);
+            String sTunnelAppId = testers.deployMultiNodeSTunnel(pipelineName);
             //String sTunnelAppId = "resource-13d93383-8687-4b5c-8325-31e57445bfb3";
             gPayload st = client.globalcontroller.get_pipeline_info(sTunnelAppId);
             //System.out.println(st.nodes.get(0).node_id);
             System.out.println(st.nodes.get(0).params);
+            for(gNode node : st.nodes) {
+                System.out.println("--");
+                System.out.println(node.params);
+            }
 
             String srcRegionId = st.nodes.get(0).params.get("region_id");
             String srcAgentId = st.nodes.get(0).params.get("agent_id");
             String srcPluginId = st.nodes.get(0).params.get("plugin_id");
+
+            String dstRegionId = st.nodes.get(1).params.get("region_id");
+            String dstAgentId = st.nodes.get(1).params.get("agent_id");
+            String dstPluginId = st.nodes.get(1).params.get("plugin_id");
+
             System.out.println("region: " + srcRegionId + " agent: " + srcAgentId + " plugin: " + srcPluginId);
 
-            String tunnelId = "t0-t0-t0-t0-t0";
-
-
-
-            /*
-            String message_event_type = "EXEC";
-            Map<String, Object> message_payload = new HashMap();
-            message_payload.put("action", "listensrc");
-            message_payload.put("action_stunnel_listen_port", "9000");
-            message_payload.put("action_stunnel_id", tunnelId);
-            Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
-
-            System.out.println(responce);
-             */
 
             class RepoPrinter implements OnMessageCallback {
 
@@ -129,12 +133,14 @@ public class Launcher {
             //message_payload.put("action_dst_port", "5201");
             message_payload.put("action_dst_host", "localhost");
             message_payload.put("action_dst_port", "5202");
-            message_payload.put("action_dst_region", srcRegionId);
-            message_payload.put("action_dst_agent", srcAgentId);
-            message_payload.put("action_dst_plugin", srcPluginId);
+            message_payload.put("action_dst_region", dstRegionId);
+            message_payload.put("action_dst_agent", dstAgentId);
+            message_payload.put("action_dst_plugin", dstPluginId);
+            message_payload.put("action_buffer_size",String.valueOf(128000));
             Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
 
             System.out.println(responce);
+
 
             //Thread.sleep(5000);
             /*
