@@ -136,7 +136,7 @@ public class Launcher {
             message_payload.put("action_dst_region", dstRegionId);
             message_payload.put("action_dst_agent", dstAgentId);
             message_payload.put("action_dst_plugin", dstPluginId);
-            message_payload.put("action_buffer_size",String.valueOf(128000));
+            message_payload.put("action_buffer_size",String.valueOf(256000));
             Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
 
             System.out.println(responce);
