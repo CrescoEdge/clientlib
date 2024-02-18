@@ -136,6 +136,11 @@ public class DataPlaneInterface {
         }
 
         @Override
+        public void onMessage(byte[] b, int offset, int length) {
+            onMessageCallback.onMessage(b, offset, length);
+        }
+
+        @Override
         public void onClose(int statusCode, String reason) {
 
         }
@@ -144,7 +149,12 @@ public class DataPlaneInterface {
     class LogPrinter implements OnMessageCallback {
         @Override
         public void onMessage(String msg) {
-            System.out.println(msg);
+
+            System.out.println("DP LogPrinter: " + msg);
+        }
+
+        @Override
+        public void onMessage(byte[] b, int offset, int length) {
         }
     }
 

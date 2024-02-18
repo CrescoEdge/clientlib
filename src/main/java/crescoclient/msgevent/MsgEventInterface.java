@@ -1,11 +1,13 @@
 package crescoclient.msgevent;
 
+import com.google.common.primitives.Bytes;
 import crescoclient.core.WSCallback;
 import crescoclient.core.WSInterface;
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.websocket.api.Session;
 
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.SynchronousQueue;
@@ -94,6 +96,11 @@ public class MsgEventInterface {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
+        }
+
+        @Override
+        public void onMessage(byte[] b, int offset, int length) {
+            System.out.println("MsgEventInterface WSMsgEventCallback onMessage(Bytes[] b) unimplemented");
         }
 
         @Override

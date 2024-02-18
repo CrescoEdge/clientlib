@@ -10,6 +10,7 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
+import java.io.InputStream;
 import java.net.Socket;
 import java.net.URI;
 import java.security.cert.Certificate;
@@ -119,9 +120,13 @@ public class WSInterface
                         client = new WebSocketClient(http);
                         //no idle timeout
                         client.getPolicy().setIdleTimeout(0);
-                        client.getPolicy().setMaxTextMessageSize(10000000);
-                        client.getPolicy().setMaxBinaryMessageSize(10000000);
+                        //set buffers
+                        client.getPolicy().setMaxTextMessageSize(1024 * 1024 * 32);
+                        client.getPolicy().setMaxTextMessageBufferSize(1024 * 1024 * 128);
+                        client.getPolicy().setMaxBinaryMessageSize(1024 * 1024 * 32);
+                        client.getPolicy().setMaxBinaryMessageBufferSize(1024 * 1024 * 128);
                         ClientUpgradeRequest request = new ClientUpgradeRequest();
+                        request.addExtensions("permessage-deflate");
                         request.setHeader("cresco_service_key", wsConfig.get("service_key"));
 
                         try {
@@ -258,6 +263,11 @@ public class WSInterface
         @Override
         public void onMessage(String msg) {
             wsCallback.onMessage(msg);
+        }
+
+        @Override
+        public void onMessage(byte[] b, int offset, int length) {
+            wsCallback.onMessage(b, offset, length);
         }
 
         @Override

@@ -5,6 +5,8 @@ import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.*;
 
+import java.io.InputStream;
+
 @WebSocket
 public class WSInterfaceImpl
 {
@@ -43,4 +45,13 @@ public class WSInterfaceImpl
         wSStatusCallback.onMessage(msg);
 
     }
+
+    @OnWebSocketMessage
+    public void onMessage(byte[] b, int offset, int length) {
+        LOG.debug("onMessage() Bytes");
+        wSStatusCallback.onMessage(b, offset, length);
+    }
+
+
+
 }

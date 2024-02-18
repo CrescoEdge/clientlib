@@ -2,7 +2,6 @@ package example;
 
 import com.google.gson.Gson;
 import crescoclient.CrescoClient;
-import crescoclient.core.OnMessageCallback;
 import crescoclient.dataplane.DataPlaneInterface;
 import crescoclient.logstreamer.LogStreamerInterface;
 import io.cresco.library.app.gPayload;
@@ -712,5 +711,132 @@ public class Testers {
         Map<String,String> remove_reply = client.agents.remove_plugin_agent(dst_region,dst_agent,dst_plugin);
 
          */
+
+    //String pipeline_id = client.globalcontroller.get_pipeline_list().get(0).get("pipeline_id");
+
+    //System.out.println(gson.toJson(client.globalcontroller.get_pipeline_info(resource_id)));
+    //String inode_id = "inode-ea7139fb-389d-4d59-a9e2-e749a5b22e86";
+    //Map<String, String> addi = client.globalcontroller.pipeline_getisassignmentinfo(inode_id, pipeline_id);
+    //Map<String, String> addi = client.globalcontroller.get_pipeline_export(pipeline_id);
+    //System.out.println(client.messaging.getCompressedParam(addi.get("gpipeline")));
+
+    //Map<String,String> responce = client.agents.get_log(dst_region, dst_agent);
+    //String info = new String(client.messaging.getCompressedDataParam(responce.get("log")));
+    //Map<String,List<Map<String,String>>> regionList = client.globalcontroller.get_region_list();
+    //System.out.println(regionList);
+    //Map<String,String> responce = client.agents.get_log(dst_region, dst_agent);
+    //List<Map<String,String>> responce = client.globalcontroller.get_plugin_list(dst_region, dst_agent);
+    //Map<String,List<Map<String,String>>> responce = client.globalcontroller.get_plugin_repo_list();
+    //System.out.println(responce);
+
+    //System.exit(0);
+
+
+    //Thread.sleep(5000);
+            /*
+            String message_event_type = "EXEC";
+            Map<String, Object> message_payload = new HashMap();
+            message_payload.put("action", "listensrc");
+            message_payload.put("action_stunnel_listen_port", "9000");
+            message_payload.put("action_stunnel_id", tunnelId);
+            Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+
+            System.out.println(responce);
+
+            message_payload.clear();
+            message_payload.put("action", "listendst");
+            message_payload.put("action_stunnel_id", tunnelId);
+            message_payload.put("action_stunnel_dst_host", "128.163.189.58");
+            message_payload.put("action_stunnel_dst_port", "80");
+
+            responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+
+            System.out.println(responce);
+
+             */
+
+
+            /*
+            while(true) {
+                String message_event_type = "EXEC";
+                Map<String, Object> message_payload = new HashMap();
+                message_payload.put("action", "test");
+                message_payload.put("action_stunnel_id", tunnelId);
+                Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+                //System.out.println(responce);
+                Thread.sleep(5000);
+            }
+
+             */
+
+
+    //message_payload.clear();
+    //message_payload.put("action", "listendst");
+    //message_payload.put("action_stunnel_id", "t0");
+    //message_payload.put("action_stunnel_listen_port", "9000");
+    //responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+
+    //System.out.println(responce);
+
+    //client.close();
+
+            /*
+            //Location of plugin
+            String pipelineName = "FileRepoExample";
+            String repo_name_1 = "test_repo_1";
+            String repo_name_2 = "test_repo_2";
+            //String repo_path_1 = "/data/1";
+            //String repo_path_2 = "/data/2";
+            String repo_path_1 = "/Users/cody/IdeaProjects/agent/data/1";
+            String repo_path_2 = "/Users/cody/IdeaProjects/agent/data/2";
+
+            //deploy a pair of filerepo plugins as an application
+            String fileRepoAppId = testers.deployFileRepo(pipelineName, repo_name_1, repo_path_1, repo_name_2, repo_path_2);
+
+            class RepoPrinter implements OnMessageCallback {
+
+                int lastTransferId = -1;
+                @Override
+                public void onMessage(String msg) {
+
+                    Map<String,String> repoMap = client.messaging.getMapFromString(msg);
+                    String repoRegionId = repoMap.get("repo_region_id");
+                    String repoAgentId = repoMap.get("repo_agent_id");
+                    String repoPluginId = repoMap.get("repo_plugin_id");
+                    String repoName = repoMap.get("filerepo_name");
+                    int incomingTransferId = Integer.parseInt(repoMap.get("transfer_id"));
+                    if(lastTransferId != incomingTransferId){
+                        System.out.println("UPDATED: " + repoMap);
+                        lastTransferId = incomingTransferId;
+
+                        String message_event_type = "EXEC";
+                        Map<String, Object> message_payload = new HashMap<>();
+                        message_payload.put("action", "getrepofilelist");
+                        message_payload.put("repo_name",repoName);
+                        Map<String,String> reply = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, repoRegionId, repoAgentId, repoPluginId);
+                        String blah = client.messaging.getCompressedParam(reply.get("repofilelist"));
+                        System.out.println("Repo file list: \n" + blah);
+
+                    }
+
+                }
+            }
+
+            String queryStringRepo1 = "filerepo_name='" + repo_name_1 + "' AND broadcast";
+            DataPlaneInterface dataPlaneRepo1 = client.getDataPlane(queryStringRepo1, new RepoPrinter());
+            dataPlaneRepo1.start();
+
+            String queryStringRepo2 = "filerepo_name='" + repo_name_2 + "' AND broadcast";
+            DataPlaneInterface dataPlaneRepo2 = client.getDataPlane(queryStringRepo2, new RepoPrinter());
+            dataPlaneRepo2.start();
+
+
+
+
+            while(true) {
+                Thread.sleep(1000);
+            }
+
+             */
 
 }

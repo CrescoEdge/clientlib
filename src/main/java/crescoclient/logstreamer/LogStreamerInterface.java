@@ -1,5 +1,6 @@
 package crescoclient.logstreamer;
 
+import com.google.common.primitives.Bytes;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import crescoclient.core.OnMessageCallback;
@@ -9,6 +10,7 @@ import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.websocket.api.Session;
 
+import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
@@ -110,6 +112,11 @@ public class LogStreamerInterface {
         }
 
         @Override
+        public void onMessage(byte[] b, int offset, int length) {
+            System.out.println("WSLogStreamerCallback onMessage(Bytes[] b) unimplemented");
+        }
+
+        @Override
         public void onClose(int statusCode, String reason) {
 
         }
@@ -119,6 +126,11 @@ public class LogStreamerInterface {
         @Override
         public void onMessage(String msg) {
             System.out.println(msg);
+        }
+
+        @Override
+        public void onMessage(byte[] b, int offset, int length) {
+            System.out.println("LogStreamerInterface LogPrinter onMessage(Bytes[] b) unimplemented");
         }
     }
 
