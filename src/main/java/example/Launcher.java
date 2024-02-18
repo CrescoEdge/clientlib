@@ -15,8 +15,25 @@ public class Launcher {
 
         if(client.connected()) {
 
-            BinaryPerformanceTesting binaryPerformanceTesting = new BinaryPerformanceTesting(client);
-            binaryPerformanceTesting.runTest();
+            //BinaryPerformanceTesting binaryPerformanceTesting = new BinaryPerformanceTesting(client);
+            //binaryPerformanceTesting.runTest();
+
+            /*
+
+            Map<String,String> update = new HashMap<>();
+            update.put("action",action);
+            update.put("filerepo_name",filerepoName);
+            update.put("repo_region_id", plugin.getRegion());
+            update.put("repo_agent_id",plugin.getAgent());
+            update.put("repo_plugin_id",plugin.getPluginID());
+            update.put("transfer_id", String.valueOf(transferId));
+
+            TextMessage updateMessage = plugin.getAgentService().getDataPlaneService().createTextMessage();
+            updateMessage.setText(gson.toJson(update));
+            updateMessage.setStringProperty("filerepo_name",filerepoName);
+            updateMessage.setBooleanProperty("broadcast",Boolean.TRUE);
+
+             */
 
         } else {
             System.out.println("Could not connect to remote.");
