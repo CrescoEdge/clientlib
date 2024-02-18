@@ -85,6 +85,20 @@ public class DataPlaneInterface {
         }
     }
 
+    public void sendPartial(ByteBuffer byteBuffer, boolean complete) {
+
+        try {
+            if(wsInterface.connected()) {
+                System.out.println("sendPartial(ByteBuffer byteBuffer, boolean complete) support not implemented on wsapi");
+                wsInterface.getSession().getRemote().sendPartialBytes(byteBuffer, complete);
+            } else {
+                System.out.println("WS not connected!");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public void update_config(String dst_region, String dst_agent) {
         send(dst_region + ',' + dst_agent + ",Trace,default");
     }

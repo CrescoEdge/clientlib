@@ -77,7 +77,7 @@ public class BinaryPerformanceTesting {
                     bytesTransferred = bytesTransferred + length;
                     //String s = new String(b, StandardCharsets.UTF_8);
                     //System.out.println("binary: " + s);
-                    //System.out.println("length: " + b.length + " offset: " + offset + " length: " + length);
+                    System.out.println("length: " + b.length + " offset: " + offset + " length: " + length);
                 }
             }
 
@@ -96,12 +96,25 @@ public class BinaryPerformanceTesting {
             Random random = new Random();
             int byteSize = 32768 * 10;
 
+            for(int i=0; i<10; i++) {
+                byte[] byteArray = new byte[byteSize];
+                random.nextBytes(byteArray);
+                ByteBuffer buffer = ByteBuffer.wrap(byteArray);
+                dataPlaneSend.sendPartial(buffer, false);
+            }
+            byte[] byteArray = new byte[byteSize];
+            random.nextBytes(byteArray);
+            ByteBuffer buffer = ByteBuffer.wrap(byteArray);
+            dataPlaneSend.sendPartial(buffer, true);
+
+            /*
             for(int i=0; i<100000; i++) {
                 byte[] byteArray = new byte[byteSize];
                 random.nextBytes(byteArray);
                 ByteBuffer buffer = ByteBuffer.wrap(byteArray);
                 dataPlaneSend.send(buffer);
             }
+            */
 
         } catch (Exception ex) {
             ex.printStackTrace();
