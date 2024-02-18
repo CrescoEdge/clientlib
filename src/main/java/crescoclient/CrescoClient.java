@@ -13,11 +13,9 @@ public class CrescoClient {
     private int port;
     private String service_key;
     private MsgEventInterface msgEventInterface;
-
     public Messaging messaging;
     public Agents agents;
     public Admin admin;
-
     public API api;
     public GlobalController globalcontroller;
 

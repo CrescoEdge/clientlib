@@ -11,6 +11,7 @@ import org.eclipse.jetty.websocket.api.Session;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -63,6 +64,19 @@ public class DataPlaneInterface {
         try {
             if(wsInterface.connected()) {
                 wsInterface.getSession().getRemote().sendString(message);
+            } else {
+                System.out.println("WS not connected!");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void send(ByteBuffer byteBuffer) {
+
+        try {
+            if(wsInterface.connected()) {
+                wsInterface.getSession().getRemote().sendBytes(byteBuffer);
             } else {
                 System.out.println("WS not connected!");
             }
