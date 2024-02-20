@@ -17,7 +17,8 @@ public class Launcher {
 
             //BinaryPerformanceTesting binaryPerformanceTesting = new BinaryPerformanceTesting(client);
             //binaryPerformanceTesting.runTest();
-
+            BinaryFileRepoTesting binaryFileRepoTesting = new BinaryFileRepoTesting(client);
+            binaryFileRepoTesting.runTest();
             /*
 
             Map<String,String> update = new HashMap<>();
