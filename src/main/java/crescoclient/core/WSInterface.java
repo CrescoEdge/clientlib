@@ -138,6 +138,7 @@ public class WSInterface
                             Future<Session> fut = client.connect(socket, URI.create(url), request);
 
                             session = fut.get();
+
                             //Set region and agent info
                             setAgentInfo(http);
                             //set connected
@@ -218,8 +219,7 @@ public class WSInterface
     public Session getSession() {
         return session;
     }
-
-
+    
     public void close() {
         isReconnect.set(false);
         clearWS();

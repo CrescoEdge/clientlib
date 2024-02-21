@@ -180,7 +180,7 @@ public class Messaging {
 
             Map<String,Object> message = new HashMap<>();
             message.put("message_info",message_info);
-            message.put("message_payload",message_payload);
+            message.put("message_payload", new HashMap<>(message_payload));
 
             String json_message = gson.toJson(message);
 
