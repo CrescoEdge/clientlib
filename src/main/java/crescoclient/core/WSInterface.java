@@ -10,11 +10,12 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
-import java.io.InputStream;
 import java.net.Socket;
 import java.net.URI;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -24,6 +25,8 @@ public class WSInterface
 {
     //private boolean isActive = false;
     private AtomicBoolean isActive = new AtomicBoolean(false);
+
+    private AtomicBoolean sessionLock = new AtomicBoolean();
     private String regionName;
     private String agentName;
     private String pluginName;
@@ -32,17 +35,30 @@ public class WSInterface
     private final Logger LOG = Log.getLogger(WSInterface.class);
     private HttpClient http;
     private WebSocketClient client;
-    private Session session;
-
+    //private Session session;
+    Map<Long, Session> sessionMap;
     private Map<String,String> wsConfig;
 
     private WSCallback wsCallback;
 
     private  int connectionTimeout;
 
+    private final int idleTimeout = 300;
+
+    private String url;
+
+    private ClientUpgradeRequest request;
+
     public WSInterface(Map<String,String> wsConfig, WSCallback wsCallback) {
         this.wsConfig = wsConfig;
         this.wsCallback = wsCallback;
+        this.sessionMap = Collections.synchronizedMap(new HashMap<>());
+        this.url = "wss://" + wsConfig.get("host") + ":" + wsConfig.get("port") + wsConfig.get("api_path");
+
+        this.request = new ClientUpgradeRequest();
+        this.request.addExtensions("permessage-deflate");
+        this.request.setHeader("cresco_service_key", wsConfig.get("service_key"));
+
     }
 
     public String getRegionName() {
@@ -96,6 +112,8 @@ public class WSInterface
 
     public boolean connect() {
 
+        //System.out.println("THIS FIRST");
+
         boolean isConnected = false;
 
         if(!inConnect.get()) {
@@ -105,8 +123,6 @@ public class WSInterface
                 if (wsConfig.containsKey("host") && wsConfig.containsKey("port") && wsConfig.containsKey("service_key") && wsConfig.containsKey("api_path")) {
 
                     if (serverListening(wsConfig.get("host"), Integer.parseInt(wsConfig.get("port")))) {
-
-                        String url = "wss://" + wsConfig.get("host") + ":" + wsConfig.get("port") + wsConfig.get("api_path");
 
                         SslContextFactory ssl = new SslContextFactory.Client();
                         ssl.setTrustAll(true);
@@ -125,24 +141,27 @@ public class WSInterface
                         client.getPolicy().setMaxTextMessageBufferSize(1024 * 1024 * 128);
                         client.getPolicy().setMaxBinaryMessageSize(1024 * 1024 * 32);
                         client.getPolicy().setMaxBinaryMessageBufferSize(1024 * 1024 * 128);
-                        ClientUpgradeRequest request = new ClientUpgradeRequest();
-                        request.addExtensions("permessage-deflate");
-                        request.setHeader("cresco_service_key", wsConfig.get("service_key"));
 
                         try {
 
                             http.start();
                             client.start();
 
-                            WSInterfaceImpl socket = new WSInterfaceImpl(new WSPassThroughCallback());
+                            /*
+                            WSocketImp socket = new WSocketImp(new WSPassThroughCallback());
                             Future<Session> fut = client.connect(socket, URI.create(url), request);
 
-                            session = fut.get();
+                            Session session = fut.get();
 
                             //Set region and agent info
                             setAgentInfo(http);
                             //set connected
-                            isConnected = session.isOpen();
+
+                            //isConnected = session.isOpen();
+
+                             */
+                            isActive.set(true);
+
 
                         } catch (Throwable t) {
                             LOG.warn(t);
@@ -150,6 +169,7 @@ public class WSInterface
                             //stop(http);
                             //stop(client);
                         }
+                        //System.out.println("DID YOU FINISHED");
                     } else {
                         inConnect.set(false);
                         LOG.warn("connect(): Remote server is not listening at host:" + wsConfig.get("host") + " port:" + wsConfig.get("port"));
@@ -209,14 +229,56 @@ public class WSInterface
     }
 
     public boolean connected() {
-        if(session != null) {
-            return session.isOpen();
-        } else {
-            return false;
+        boolean isConnected = false;
+        if(getIsActive()) {
+            boolean isSession;
+            synchronized (sessionLock) {
+                isSession = sessionMap.containsKey(Thread.currentThread().getId());
+            }
+            if (!isSession) {
+                getSession();
+            }
+            synchronized (sessionLock) {
+                isConnected = sessionMap.get(Thread.currentThread().getId()).isOpen();
+            }
         }
+        return isConnected;
     }
 
+    public Session createSession() {
+        Session session = null;
+        try {
+            WSocketImp socket = new WSocketImp(new WSPassThroughCallback());
+            //System.out.println("url: " + url);
+            //System.out.println("request: " + request);
+            //System.out.println(client);
+            //System.out.println(URI.create(url));
+            Future<Session> fut = client.connect(socket, URI.create(url), request);
+            session = fut.get();
+            if(regionName == null) {
+                setAgentInfo(http);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return session;
+    }
     public Session getSession() {
+        Session session;
+
+        boolean sessionExists;
+        synchronized (sessionLock) {
+            sessionExists = sessionMap.containsKey(Thread.currentThread().getId());
+        }
+        if(sessionExists) {
+            session = sessionMap.get(Thread.currentThread().getId());
+        } else {
+            session = createSession();
+            synchronized (sessionLock) {
+                sessionMap.put(Thread.currentThread().getId(), session);
+            }
+        }
+
         return session;
     }
     

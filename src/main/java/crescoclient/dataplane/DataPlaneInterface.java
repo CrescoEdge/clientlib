@@ -164,7 +164,7 @@ public class DataPlaneInterface {
         @Override
         public void onMessage(String msg) {
 
-            System.out.println("DP LogPrinter: " + msg);
+            //System.out.println("DP LogPrinter: " + msg);
         }
 
         @Override

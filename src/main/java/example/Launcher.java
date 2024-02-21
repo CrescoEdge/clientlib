@@ -12,13 +12,18 @@ public class Launcher {
 
         CrescoClient client = new CrescoClient(host,port,service_key);
         client.connect();
+        //System.out.println("ARE YOU BLOCKING?");
 
         if(client.connected()) {
-
+            //System.out.println("ARE YOU BLOCKING? 2");
             //BinaryPerformanceTesting binaryPerformanceTesting = new BinaryPerformanceTesting(client);
             //binaryPerformanceTesting.runTest();
-            BinaryFileRepoTesting binaryFileRepoTesting = new BinaryFileRepoTesting(client);
-            binaryFileRepoTesting.runTest();
+
+            //BinaryFileRepoTesting binaryFileRepoTesting = new BinaryFileRepoTesting(client);
+            //binaryFileRepoTesting.runTest();
+            TextPerformanceTesting textPerformanceTesting = new TextPerformanceTesting(client);
+            textPerformanceTesting.runTest();
+
             /*
 
             Map<String,String> update = new HashMap<>();

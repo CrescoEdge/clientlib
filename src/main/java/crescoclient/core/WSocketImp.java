@@ -5,15 +5,13 @@ import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.*;
 
-import java.io.InputStream;
-
 @WebSocket
-public class WSInterfaceImpl
+public class WSocketImp
 {
 
-    private final Logger LOG = Log.getLogger(WSInterfaceImpl.class);
+    private final Logger LOG = Log.getLogger(WSocketImp.class);
     private WSCallback wSStatusCallback;
-    public WSInterfaceImpl(WSCallback wSStatusCallback) {
+    public WSocketImp(WSCallback wSStatusCallback) {
         this.wSStatusCallback = wSStatusCallback;
     }
 

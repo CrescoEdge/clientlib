@@ -1,13 +1,11 @@
 package crescoclient.msgevent;
 
-import com.google.common.primitives.Bytes;
 import crescoclient.core.WSCallback;
 import crescoclient.core.WSInterface;
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.websocket.api.Session;
 
-import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.SynchronousQueue;
