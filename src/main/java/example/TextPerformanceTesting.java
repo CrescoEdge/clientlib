@@ -94,13 +94,17 @@ public class TextPerformanceTesting {
                 Thread.sleep(1000);
             }
 
+            Thread.sleep(5000);
+
+
             String input = "BRRRRUUU";
 
-            for(int i = 0; i<50; i++) {
+            for(int i = 0; i<10; i++) {
                launchThread(dataPlaneSend, input);
             }
 
             while(true) {
+            //for(int i = 0; i<25; i++) {
                 Thread.sleep(1000);
                 //dataPlaneSend.send(str);
             }
@@ -118,7 +122,12 @@ public class TextPerformanceTesting {
             public void run() {
                 try {
                     while(true) {
-                        dataPlaneSend.send(input);
+                        for(int i = 0; i<100; i++) {
+                            //Thread.sleep(1000);
+                            //dataPlaneSend.send(str);
+                            dataPlaneSend.send(input);
+                        }
+                        //dataPlaneSend.send(input);
                         //Thread.sleep(1000);
                     }
 
