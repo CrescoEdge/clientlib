@@ -57,7 +57,8 @@ public class LogStreamerInterface {
     public void send(String message) {
 
         try {
-
+            System.out.println("LOG");
+            System.out.println("LOG getSession()");
             wsInterface.getSession().getRemote().sendString(message);
 
         } catch (Exception e) {

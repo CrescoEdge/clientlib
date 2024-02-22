@@ -32,8 +32,12 @@ public class WSocketImp
     @OnWebSocketError
     public void onError(Throwable cause)
     {
-        LOG.warn(cause);
-        wSStatusCallback.onError(cause);
+        if(cause instanceof org.eclipse.jetty.websocket.api.CloseException) {
+            LOG.debug(cause);
+        } else {
+            LOG.warn(cause);
+            wSStatusCallback.onError(cause);
+        }
     }
 
     @OnWebSocketMessage

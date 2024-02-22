@@ -1,5 +1,7 @@
 package crescoclient.core;
 
+import com.google.gson.Gson;
+import crescoclient.dataplane.DataPlaneInterface;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty.util.log.Log;
@@ -14,9 +16,7 @@ import java.net.Socket;
 import java.net.URI;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -25,7 +25,6 @@ public class WSInterface
 {
     //private boolean isActive = false;
     private AtomicBoolean isActive = new AtomicBoolean(false);
-
     private AtomicBoolean sessionLock = new AtomicBoolean();
     private String regionName;
     private String agentName;
@@ -43,7 +42,7 @@ public class WSInterface
 
     private  int connectionTimeout;
 
-    private final int idleTimeout = 300;
+    private final int idleTimeout = 30 * 1000;
 
     private String url;
 
@@ -59,6 +58,8 @@ public class WSInterface
         this.request.addExtensions("permessage-deflate");
         this.request.setHeader("cresco_service_key", wsConfig.get("service_key"));
 
+        //clean up sessions
+        sessionCleanup();
     }
 
     public String getRegionName() {
@@ -129,13 +130,14 @@ public class WSInterface
                         ssl.setValidateCerts(false);
                         ssl.setValidatePeerCerts(false);
                         ssl.setEndpointIdentificationAlgorithm(null);
-                        ssl.setIncludeProtocols("TLSv1.2", "TLSv1.3");
+                        //ssl.setIncludeProtocols("TLSv1.2", "TLSv1.3");
                         //ssl.setEndpointIdentificationAlgorithm("HTTPS");
                         http = new HttpClient(ssl);
                         //http = new HttpClient();
                         client = new WebSocketClient(http);
                         //no idle timeout
                         client.getPolicy().setIdleTimeout(0);
+
                         //set buffers
                         client.getPolicy().setMaxTextMessageSize(1024 * 1024 * 32);
                         client.getPolicy().setMaxTextMessageBufferSize(1024 * 1024 * 128);
@@ -147,23 +149,13 @@ public class WSInterface
                             http.start();
                             client.start();
 
-                            /*
-                            WSocketImp socket = new WSocketImp(new WSPassThroughCallback());
-                            Future<Session> fut = client.connect(socket, URI.create(url), request);
-
-                            Session session = fut.get();
-
-                            //Set region and agent info
+                            //get an initial session in order to get the agent info
+                            getSession(true);
                             setAgentInfo(http);
-                            //set connected
-
-                            //isConnected = session.isOpen();
-
-                             */
                             isActive.set(true);
 
-
                         } catch (Throwable t) {
+                            System.out.println("WHAT TYPE ERROR: " + t.getMessage());
                             LOG.warn(t);
                         } finally {
                             //stop(http);
@@ -197,7 +189,7 @@ public class WSInterface
 
                     //clear out previous
                     clearWS();
-
+                    //System.out.println("start()");
                     while ((isReconnect.get()) && (!isActive.get())) {
                         try {
                             connect();
@@ -229,23 +221,31 @@ public class WSInterface
     }
 
     public boolean connected() {
+        boolean isConencted = false;
+        if(getIsActive()) {
+            if(client.getState().equals("STARTED")) {
+                isConencted = true;
+            }
+        }
+        return isConencted;
+
+    }
+    public boolean SessionConnected() {
         boolean isConnected = false;
         if(getIsActive()) {
-            boolean isSession;
             synchronized (sessionLock) {
-                isSession = sessionMap.containsKey(Thread.currentThread().getId());
-            }
-            if (!isSession) {
-                getSession();
-            }
-            synchronized (sessionLock) {
-                isConnected = sessionMap.get(Thread.currentThread().getId()).isOpen();
+                if(sessionMap.containsKey(Thread.currentThread().getId())) {
+                    isConnected = sessionMap.get(Thread.currentThread().getId()).isOpen();
+                    if(!isConnected) {
+                        sessionMap.remove(Thread.currentThread().getId());
+                    }
+                }
             }
         }
         return isConnected;
     }
 
-    public Session createSession() {
+    public Session createSession(boolean setIdleTimeout) {
         Session session = null;
         try {
             WSocketImp socket = new WSocketImp(new WSPassThroughCallback());
@@ -255,30 +255,40 @@ public class WSInterface
             //System.out.println(URI.create(url));
             Future<Session> fut = client.connect(socket, URI.create(url), request);
             session = fut.get();
-            if(regionName == null) {
-                setAgentInfo(http);
+            if(setIdleTimeout) {
+                session.setIdleTimeout(idleTimeout);
             }
+            //if(regionName == null) {
+            //    setAgentInfo(http);
+            //}
+            //System.out.println("CREATE SESSIONS Thread: " + Thread.currentThread().getId());
         } catch (Exception ex) {
+            System.out.println("createSession() Error: " + ex.getMessage());
             ex.printStackTrace();
         }
         return session;
     }
     public Session getSession() {
+        return getSession(false);
+    }
+    public Session getSession(boolean isTemp) {
         Session session;
-
-        boolean sessionExists;
+        boolean sessionExists = false;
         synchronized (sessionLock) {
-            sessionExists = sessionMap.containsKey(Thread.currentThread().getId());
+            if(sessionMap.containsKey(Thread.currentThread().getId())) {
+                sessionExists = SessionConnected();
+            }
         }
         if(sessionExists) {
+            //System.out.println("session exists");
             session = sessionMap.get(Thread.currentThread().getId());
         } else {
-            session = createSession();
+            //System.out.println("session create");
+            session = createSession(isTemp);
             synchronized (sessionLock) {
                 sessionMap.put(Thread.currentThread().getId(), session);
             }
         }
-
         return session;
     }
     
@@ -297,6 +307,70 @@ public class WSInterface
             stopLC(http);
         }
     }
+
+    private int getSessionCount() {
+        synchronized (sessionLock) {
+            return sessionMap.size();
+        }
+    }
+
+    private List<Long> getSessionList() {
+        List<Long> sessionList;
+        synchronized (sessionLock) {
+            sessionList = new ArrayList<>(sessionMap.keySet());
+        }
+        return sessionList;
+    }
+
+    private void sessionCleanup() {
+
+        try {
+
+            //setup performance timer
+            Timer timer = new Timer();
+
+            TimerTask task = new TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        int sessionCount = getSessionCount();
+                        if(sessionCount > 0) {
+
+                            //System.out.println("thread: " + Thread.currentThread().getId() + " session count: " + sessionCount);
+                            List<Long> sessionList = getSessionList();
+                            int count = 1;
+                            for (Long sessionId : sessionList) {
+                                boolean isOpen;
+                                synchronized (sessionLock) {
+                                    isOpen = sessionMap.get(sessionId).isOpen();
+                                }
+                                //System.out.println("thread: " + Thread.currentThread().getId() + " " + count  + " of " + sessionList.size()  +" sessionId: " + sessionId + " is open " + isOpen);
+                                count++;
+                                if (!isOpen) {
+                                    synchronized (sessionLock) {
+                                        sessionMap.remove(sessionId);
+                                    }
+                                }
+                            }
+                            //System.out.println("-");
+                        }
+
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+
+                }
+            };
+
+            // Schedule the timer task to run every second
+            timer.schedule(task, 0, 30 * 1000);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+
+    }
+
 
     private void stopLC(LifeCycle lifeCycle) {
         try
@@ -335,13 +409,15 @@ public class WSInterface
         @Override
         public void onClose(int statusCode, String reason) {
             wsCallback.onClose(statusCode,reason);
-
+            /*
             if(isReconnect.get()) {
                 if(isActive.get()) {
                     isActive.set(false);
+                    System.out.println("1");
                     start(connectionTimeout);
                 }
             }
+            */
 
         }
     }

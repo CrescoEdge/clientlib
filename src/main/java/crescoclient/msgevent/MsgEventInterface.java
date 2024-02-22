@@ -43,8 +43,8 @@ public class MsgEventInterface {
     public void send(String message) {
 
         try {
-
-            wsInterface.getSession().getRemote().sendString(message);
+            System.out.println("MSG EVENT: " + message);
+            wsInterface.getSession(true).getRemote().sendString(message);
 
         } catch (Exception e) {
             e.printStackTrace();

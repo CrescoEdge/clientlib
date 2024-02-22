@@ -63,7 +63,9 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
+                //System.out.println("DP Send text getSession()");
                 wsInterface.getSession().getRemote().sendString(message);
+
             } else {
                 System.out.println("WS not connected!");
             }
@@ -76,6 +78,7 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
+                System.out.println("DB B");
                 wsInterface.getSession().getRemote().sendBytes(byteBuffer);
             } else {
                 System.out.println("WS not connected!");

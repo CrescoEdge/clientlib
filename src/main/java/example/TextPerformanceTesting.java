@@ -36,7 +36,7 @@ public class TextPerformanceTesting {
                     double bytesPerSecond = (double) bytesTransferred / (timeElapsed/1000);
 
                     // Print the bytes per second
-                    System.out.println("Message per second: " + bytesPerSecond);
+                    //System.out.println("Message per second: " + bytesPerSecond);
                 }
             };
 
@@ -99,15 +99,15 @@ public class TextPerformanceTesting {
 
             String input = "BRRRRUUU";
 
-            for(int i = 0; i<10; i++) {
+            for(int i = 0; i<3; i++) {
                launchThread(dataPlaneSend, input);
             }
 
-            while(true) {
+            //while(true) {
             //for(int i = 0; i<25; i++) {
-                Thread.sleep(1000);
+                //Thread.sleep(1000);
                 //dataPlaneSend.send(str);
-            }
+            //}
 
 
         } catch (Exception ex) {
@@ -121,15 +121,23 @@ public class TextPerformanceTesting {
         new Thread() {
             public void run() {
                 try {
-                    while(true) {
-                        for(int i = 0; i<100; i++) {
+                    //while(true) {
+                        for(int i = 0; i<10; i++) {
                             //Thread.sleep(1000);
                             //dataPlaneSend.send(str);
                             dataPlaneSend.send(input);
                         }
+                        Thread.sleep(45 * 1000);
+
+                        for(int i = 0; i<10; i++) {
+                            //Thread.sleep(1000);
+                            //dataPlaneSend.send(str);
+                            dataPlaneSend.send(input);
+                        }
+                        System.out.println("ENDED");
                         //dataPlaneSend.send(input);
                         //Thread.sleep(1000);
-                    }
+                    //}
 
                 } catch(Exception v) {
                     System.out.println(v);
