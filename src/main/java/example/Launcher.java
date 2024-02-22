@@ -21,8 +21,13 @@ public class Launcher {
 
             //BinaryFileRepoTesting binaryFileRepoTesting = new BinaryFileRepoTesting(client);
             //binaryFileRepoTesting.runTest();
-            TextPerformanceTesting textPerformanceTesting = new TextPerformanceTesting(client);
-            textPerformanceTesting.runTest();
+
+            //TextPerformanceTesting textPerformanceTesting = new TextPerformanceTesting(client);
+            //textPerformanceTesting.runTest();
+
+            FileRepoPerformanceTesting fileRepoPerformanceTesting = new FileRepoPerformanceTesting(client);
+            fileRepoPerformanceTesting.runTest();
+
 
             /*
 
