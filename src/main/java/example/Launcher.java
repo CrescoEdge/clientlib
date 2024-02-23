@@ -15,6 +15,7 @@ public class Launcher {
         //System.out.println("ARE YOU BLOCKING?");
 
         if(client.connected()) {
+
             //System.out.println("ARE YOU BLOCKING? 2");
             //BinaryPerformanceTesting binaryPerformanceTesting = new BinaryPerformanceTesting(client);
             //binaryPerformanceTesting.runTest();
@@ -22,12 +23,11 @@ public class Launcher {
             //BinaryFileRepoTesting binaryFileRepoTesting = new BinaryFileRepoTesting(client);
             //binaryFileRepoTesting.runTest();
 
-            TextPerformanceTesting textPerformanceTesting = new TextPerformanceTesting(client);
-            textPerformanceTesting.runTest();
+            //TextPerformanceTesting textPerformanceTesting = new TextPerformanceTesting(client);
+            //textPerformanceTesting.runTest();
 
             FileRepoPerformanceTesting fileRepoPerformanceTesting = new FileRepoPerformanceTesting(client);
             fileRepoPerformanceTesting.runTest();
-
 
             /*
 
