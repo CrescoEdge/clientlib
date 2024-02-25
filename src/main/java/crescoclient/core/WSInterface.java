@@ -1,7 +1,5 @@
 package crescoclient.core;
 
-import com.google.gson.Gson;
-import crescoclient.dataplane.DataPlaneInterface;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty.util.log.Log;
@@ -289,6 +287,7 @@ public class WSInterface
                 sessionMap.put(Thread.currentThread().getId(), session);
             }
         }
+
         return session;
     }
     
@@ -397,8 +396,8 @@ public class WSInterface
         }
 
         @Override
-        public void onMessage(String msg) {
-            wsCallback.onMessage(msg);
+        public void onMessage(Session sess, String msg) {
+            wsCallback.onMessage(sess, msg);
         }
 
         @Override

@@ -14,6 +14,7 @@ public class TransferStream {
     private long startByte;
     private long bytesLength;
 
+    private long transferedPackets = 0;
     private long bytesRemaining;
     private int BUFFER_SIZE = 1024 * 1024;
 
@@ -22,10 +23,19 @@ public class TransferStream {
     private String repoPlugin;
     private String fileName;
 
+
     private boolean isActive = true;
 
     public boolean isCanceled() {
         return isCanceled;
+    }
+
+    public long getTransferedPackets() {
+        return transferedPackets;
+    }
+
+    public void setTransferedPackets() {
+        transferedPackets += 1;
     }
 
     public void setCanceled(boolean canceled) {
@@ -83,8 +93,9 @@ public class TransferStream {
         return bytesRemaining;
     }
 
-    public void setBytesRemaining(long bytesRemaining) {
-        this.bytesRemaining = bytesRemaining;
+    public void setBytesRemaining(long bytestransfered) {
+
+        this.bytesRemaining = bytesRemaining - bytestransfered;
         /*
         if(bytesRemaining == 0) {
             try {

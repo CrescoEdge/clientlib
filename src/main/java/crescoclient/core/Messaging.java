@@ -43,7 +43,7 @@ public class Messaging {
 
             String json_message = gson.toJson(message);
 
-            ws_interface.send(json_message);
+            ws_interface.send(is_rpc, json_message);
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
@@ -70,7 +70,7 @@ public class Messaging {
 
             String json_message = gson.toJson(message);
 
-            ws_interface.send(json_message);
+            ws_interface.send(is_rpc, json_message);
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
@@ -99,7 +99,7 @@ public class Messaging {
 
             String json_message = gson.toJson(message);
 
-            ws_interface.send(json_message);
+            ws_interface.send(is_rpc, json_message);
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
@@ -127,7 +127,7 @@ public class Messaging {
 
             String json_message = gson.toJson(message);
 
-            ws_interface.send(json_message);
+            ws_interface.send(is_rpc, json_message);
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
@@ -154,7 +154,7 @@ public class Messaging {
 
             String json_message = gson.toJson(message);
 
-            ws_interface.send(json_message);
+            ws_interface.send(is_rpc, json_message);
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
@@ -184,7 +184,7 @@ public class Messaging {
 
             String json_message = gson.toJson(message);
 
-            ws_interface.send(json_message);
+            ws_interface.send(is_rpc, json_message);
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
@@ -213,7 +213,7 @@ public class Messaging {
 
             String json_message = gson.toJson(message);
 
-            ws_interface.send(json_message);
+            ws_interface.send(is_rpc, json_message);
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
@@ -241,7 +241,7 @@ public class Messaging {
 
             String json_message = gson.toJson(message);
 
-            ws_interface.send(json_message);
+            ws_interface.send(is_rpc, json_message);
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();

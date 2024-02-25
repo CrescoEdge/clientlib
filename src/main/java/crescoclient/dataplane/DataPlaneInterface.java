@@ -135,7 +135,7 @@ public class DataPlaneInterface {
         }
 
         @Override
-        public void onMessage(String msg) {
+        public void onMessage(Session sess, String msg) {
             try {
                 if(messageCount == 0) {
                     Map<String, String> statusMap = gson.fromJson(msg, type);

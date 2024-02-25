@@ -90,7 +90,7 @@ public class FileRepoPerformanceTesting {
             long startByte;
             long byteLength = 834850409;
 
-            for(int i=0; i<50; i++) {
+            for(int i=0; i<100; i++) {
                 synchronized (ioLock) {
                     startByte = i * 1014;
                     transferId = UUID.randomUUID().toString().replace("-", "");
@@ -358,15 +358,16 @@ public class FileRepoPerformanceTesting {
                     if(transferStreams.containsKey(transferId)) {
                         long bytesRemaining = transferStreams.get(transferId).getBytesRemaining();
                         long bytesTotal = transferStreams.get(transferId).getBytesLength();
-                        transferStreams.get(transferId).setBytesRemaining(bytesRemaining - dataBufferSize);
+                        transferStreams.get(transferId).setBytesRemaining(dataBufferSize);
+                        transferStreams.get(transferId).setTransferedPackets();
                         //if((bytesTotal - bytesRemaining) > (32 * 1024 * 1024)) {
                             if (!transferStreams.get(transferId).isCanceled()) {
                                 transferStreams.get(transferId).setCanceled(true);
                                 cancel(transferId, transferStreams.get(transferId).getRepoRegion(), transferStreams.get(transferId).getRepoAgent(), transferStreams.get(transferId).getRepoPlugin());
                             }
                         //}
-                        if(transferStreams.get(transferId).isCanceled()) {
-                            System.out.println("transferid: [" + transferId + "] transfered " + (bytesTotal - bytesRemaining) + " canceled:" + transferStreams.get(transferId).isCanceled());
+                        if(!transferStreams.get(transferId).isCanceled()) {
+                            System.out.println("transferid: [" + transferId + "] transfered bytes: " + (bytesTotal - bytesRemaining) + " packets:" + transferStreams.get(transferId).getTransferedPackets() + " canceled:" + transferStreams.get(transferId).isCanceled());
                         }
                     } else {
                         System.out.println("[" + transferId + "] BAD TRANSFER ID ");

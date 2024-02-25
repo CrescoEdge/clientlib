@@ -41,10 +41,10 @@ public class WSocketImp
     }
 
     @OnWebSocketMessage
-    public void onMessage(String msg) {
+    public void onMessage(Session sess, String msg) {
 
         LOG.debug("onMessage({})", msg);
-        wSStatusCallback.onMessage(msg);
+        wSStatusCallback.onMessage(sess, msg);
 
     }
 
