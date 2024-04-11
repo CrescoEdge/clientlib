@@ -148,7 +148,7 @@ public class WSInterface
                             client.start();
 
                             //get an initial session in order to get the agent info
-                            getSession(true);
+                            getSession(false);
                             setAgentInfo(http);
                             isActive.set(true);
 

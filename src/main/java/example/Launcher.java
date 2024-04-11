@@ -1,6 +1,8 @@
 package example;
 
 import crescoclient.*;
+import crescoclient.core.OnMessageCallback;
+import crescoclient.dataplane.DataPlaneInterface;
 
 public class Launcher {
 
@@ -8,13 +10,43 @@ public class Launcher {
 
         String host = "localhost";
         int port = 8282;
-        String service_key = "c988701a-5f2a-43ac-b915-156049c5d1ee";
+        String service_key = "b03368d5-cd5b-46a4-a351-79e51166569c";
 
         CrescoClient client = new CrescoClient(host,port,service_key);
         client.connect();
+
         //System.out.println("ARE YOU BLOCKING?");
 
         if(client.connected()) {
+
+            class BytePrinter implements OnMessageCallback {
+
+                @Override
+                public void onMessage(String msg) {
+
+                    System.out.println("TEXT MESSAGE!");
+
+                }
+
+                @Override
+                public void onMessage(byte[] b, int offset, int length) {
+                    //bytesTransferred = bytesTransferred + length;
+                    //String s = new String(b, StandardCharsets.UTF_8);
+                    //System.out.println("binary: " + s);
+                    //System.out.println("length: " + b.length + " offset: " + offset + " length: " + length);
+                }
+            }
+
+            DataPlaneInterface dataPlaneRec = client.getDataPlane("tabby=pooter", new BytePrinter());
+            dataPlaneRec.start();
+            while(!dataPlaneRec.connected()) {
+                Thread.sleep(1000);
+            }
+            System.out.println("WOOO");
+
+            while(true) {
+                Thread.sleep(1000);
+            }
 
             //System.out.println("ARE YOU BLOCKING? 2");
             //BinaryPerformanceTesting binaryPerformanceTesting = new BinaryPerformanceTesting(client);
@@ -26,8 +58,8 @@ public class Launcher {
             //TextPerformanceTesting textPerformanceTesting = new TextPerformanceTesting(client);
             //textPerformanceTesting.runTest();
 
-            FileRepoPerformanceTesting fileRepoPerformanceTesting = new FileRepoPerformanceTesting(client);
-            fileRepoPerformanceTesting.runTest();
+            //FileRepoPerformanceTesting fileRepoPerformanceTesting = new FileRepoPerformanceTesting(client);
+            //fileRepoPerformanceTesting.runTest();
 
             /*
 
