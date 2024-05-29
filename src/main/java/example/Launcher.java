@@ -21,8 +21,9 @@ public class Launcher {
 
         if(client.connected()) {
 
-            TunnelTesting tunnelTesting = new TunnelTesting(client);
-            tunnelTesting.singleNodeTunnelTest();
+            //TunnelTesting tunnelTesting = new TunnelTesting(client);
+            //tunnelTesting.singleAgentTunnelTest();
+            //tunnelTesting.twoAgentTunnelTest();
 
             //System.out.println("ARE YOU BLOCKING? 2");
             //BinaryPerformanceTesting binaryPerformanceTesting = new BinaryPerformanceTesting(client);
