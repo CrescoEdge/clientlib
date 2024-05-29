@@ -85,6 +85,8 @@ client.messaging
 
 #### Single Node Tunnel Test
 
+This example code will deploy two stunnel plugins to the same agent that the client connections to.  One plugin will connect to the existing IPerf3 listening port of 5201.  The other plugin will open a socket on port 5202.  You will launch your IPerf3 client to the stunnel listening port, which will forward the traffic to the other plugin.
+
 1. Launch the [iPerf3](https://iperf.fr/iperf-download.php) server on the same node as your agent.
 
 ```bash
