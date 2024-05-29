@@ -4,6 +4,7 @@ import crescoclient.*;
 import crescoclient.core.OnMessageCallback;
 import crescoclient.dataplane.DataPlaneInterface;
 import example.stunnel.SingleNodeTunnelTest;
+import example.stunnel.TunnelTesting;
 
 public class Launcher {
 
@@ -20,8 +21,8 @@ public class Launcher {
 
         if(client.connected()) {
 
-            SingleNodeTunnelTest singleNodeTunnelTest = new SingleNodeTunnelTest(client);
-            singleNodeTunnelTest.deploySingleNodeSTunnel("iperf_tunnel");
+            TunnelTesting tunnelTesting = new TunnelTesting(client);
+            tunnelTesting.singleNodeTunnelTest();
 
             //System.out.println("ARE YOU BLOCKING? 2");
             //BinaryPerformanceTesting binaryPerformanceTesting = new BinaryPerformanceTesting(client);

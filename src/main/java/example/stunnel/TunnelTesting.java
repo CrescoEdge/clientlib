@@ -6,9 +6,27 @@ import crescoclient.dataplane.DataPlaneInterface;
 import example.TestUtils;
 import io.cresco.library.app.gNode;
 import io.cresco.library.app.gPayload;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.api.Response;
+import org.eclipse.jetty.client.util.InputStreamResponseListener;
+import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.util.IO;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class TunnelTesting {
 
@@ -17,24 +35,24 @@ public class TunnelTesting {
         this.client = client;
     }
 
-    public void runTest() {
+    public void singleNodeTunnelTest() throws InterruptedException {
+
+        String pipelineName = "sTunnelExample single node";
+        String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
+        client.globalcontroller.remove_pipeline(pipelineId);
+
+        String sTunnelAppId = deploySingleNodeSTunnel(pipelineName);
+        runTest(sTunnelAppId);
+    }
+
+    public void runTest(String sTunnelAppId) {
 
         try {
 
-            TestUtils testUtils = new TestUtils(client);
-
-            String pipelineName = "sTunnelExample";
-            String pipelineId = testUtils.getPipelineIdByName(pipelineName);
-
-            boolean isRemoved = client.globalcontroller.remove_pipeline(pipelineId);
-            //System.out.println(isRemoved);
-
-
-            //System.exit(0);
 
             //String sTunnelAppId = testers.getPipelineIdByName(pipelineName);
-            //String sTunnelAppId = testers.deploySingleNodeSTunnel(pipelineName);
-            String sTunnelAppId = testUtils.deployMultiNodeSTunnel(pipelineName);
+            //String sTunnelAppId = deploySingleNodeSTunnel(pipelineName);
+            //String sTunnelAppId = deployMultiNodeSTunnel(pipelineName);
             //String sTunnelAppId = "resource-13d93383-8687-4b5c-8325-31e57445bfb3";
             gPayload st = client.globalcontroller.get_pipeline_info(sTunnelAppId);
             //System.out.println(st.nodes.get(0).node_id);
@@ -54,32 +72,12 @@ public class TunnelTesting {
 
             System.out.println("region: " + srcRegionId + " agent: " + srcAgentId + " plugin: " + srcPluginId);
 
-            class RepoPrinter implements OnMessageCallback {
-
-                @Override
-                public void onMessage(String msg) {
-
-                    System.out.println("INCOMING FROM DP: " + msg);
-                }
-
-                @Override
-                public void onMessage(byte[] b, int offset, int length) {
-                    System.out.println("Launcher RepoPrinter onMessage(Bytes[] b) not implemented");
-                }
-
-            }
-
-            //String queryStringRepo1 = "filerepo_name='" + tunnelId + "' AND broadcast";
-            String queryStringRepo1 = "";
-            DataPlaneInterface dataPlaneRepo1 = client.getDataPlane(queryStringRepo1, new RepoPrinter());
-            dataPlaneRepo1.start();
-
             String message_event_type = "CONFIG";
             Map<String, Object> message_payload = new HashMap();
             message_payload.put("action", "configsrctunnel");
-            message_payload.put("action_src_port", "5201");
+            message_payload.put("action_src_port", "5202");
             message_payload.put("action_dst_host", "localhost");
-            message_payload.put("action_dst_port", "5202");
+            message_payload.put("action_dst_port", "5201");
             message_payload.put("action_dst_region", dstRegionId);
             message_payload.put("action_dst_agent", dstAgentId);
             message_payload.put("action_dst_plugin", dstPluginId);
@@ -94,5 +92,298 @@ public class TunnelTesting {
         }
 
     }
+
+    public String deployMultiNodeSTunnel(String pipelineName) throws InterruptedException {
+
+        boolean launchRepo = true;
+
+        //Check if the pipeline is running
+        String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
+
+        if(pipelineId != null) {
+            //get status of running pipeline
+            //int pipelineStatus = client.globalcontroller.get_pipeline_status(pipelineId);
+
+            boolean isRemoved = client.globalcontroller.remove_pipeline(pipelineId);
+            /*
+            if (pipelineStatus == 10) {
+                launchRepo = false;
+            } else {
+                //if pipeline is not in a good status remove
+                boolean isRemoved = client.globalcontroller.remove_pipeline(pipelineId);
+            }
+
+             */
+        }
+
+        if(launchRepo) {
+
+            /*
+            //Location of latest filerepo
+            String uri = "https://github.com/CrescoEdge/filerepo/releases/download/1.1-SNAPSHOT/filerepo-1.1-SNAPSHOT.jar";
+
+            //Local save file
+            String pluginSavePath = uri.substring(uri.lastIndexOf('/') + 1);
+
+            if(!(new File(pluginSavePath).isFile())) {
+                //pull plugin down from github
+                getPlugin(uri, pluginSavePath);
+            }
+
+             */
+
+            //get config of second agents
+
+            String globalAgent = client.api.getGlobalAgent();
+            List<Map<String,String>> agentList =  client.globalcontroller.get_agent_list(client.api.getGlobalRegion()).get("agents");
+            String clientAgent = null;
+            for(Map<String,String> agentMap : agentList) {
+                if(!agentMap.get("name").equals(globalAgent)) {
+                    clientAgent = agentMap.get("name");
+                }
+            }
+
+            if(clientAgent != null) {
+
+                String pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.1-SNAPSHOT.jar";
+
+                //Upload plugin to repo
+                Map<String, String> sTunnelMap = client.globalcontroller.upload_plugin_global(pluginSavePath);
+
+                //Get details about plugin
+                String sTunnelConfigParamsString = client.messaging.getCompressedParam(sTunnelMap.get("configparams"));
+                Map<String, String> sTunnelConfigParams = client.messaging.getMapFromString(sTunnelConfigParamsString);
+
+                //Build the CADL config
+                Map<String, Object> cadl = new HashMap<>();
+                cadl.put("pipeline_id", "0");
+                cadl.put("pipeline_name", pipelineName);
+                List<Map<String, Object>> nodes = new ArrayList<>();
+                List<Map<String, Object>> edges = new ArrayList<>();
+
+                Map<String, Object> params0 = new HashMap<>();
+                params0.put("pluginname", sTunnelConfigParams.get("pluginname"));
+                params0.put("md5", sTunnelConfigParams.get("md5"));
+                params0.put("version", sTunnelConfigParams.get("version"));
+                params0.put("location_region", client.api.getAPIRegionName());
+                params0.put("location_agent", client.api.getAPIAgentName());
+
+                Map<String, Object> node0 = new HashMap<>();
+                node0.put("type", "dummy");
+                node0.put("node_name", "Plugin 0");
+                node0.put("node_id", 0);
+                node0.put("isSource", false);
+                node0.put("workloadUtil", 0);
+                node0.put("params", params0);
+
+                Map<String, Object> params1 = new HashMap<>();
+                params1.put("pluginname", sTunnelConfigParams.get("pluginname"));
+                params1.put("md5", sTunnelConfigParams.get("md5"));
+                params1.put("version", sTunnelConfigParams.get("version"));
+                params1.put("location_region", client.api.getAPIRegionName());
+                params1.put("location_agent", clientAgent);
+
+                Map<String, Object> node1 = new HashMap<>();
+                node1.put("type", "dummy");
+                node1.put("node_name", "Plugin 1");
+                node1.put("node_id", 1);
+                node1.put("isSource", false);
+                node1.put("workloadUtil", 0);
+                node1.put("params", params1);
+
+                Map<String, Object> edge0 = new HashMap<>();
+                edge0.put("edge_id", 0);
+                edge0.put("node_from", 0);
+                edge0.put("node_to", 1);
+                edge0.put("params", new HashMap<>());
+
+                nodes.add(node0);
+                nodes.add(node1);
+                edges.add(edge0);
+
+                cadl.put("nodes", nodes);
+                cadl.put("edges", edges);
+
+                //Submit pipeline
+                Map<String, String> reply = client.globalcontroller.submit_pipeline("0", cadl);
+                //Get pipelineId
+                pipelineId = reply.get("gpipeline_id");
+
+                System.out.println("Starting PipelineId: " + pipelineId);
+
+                int app_status = -1;
+
+                while (app_status != 10) {
+
+                    //get identifier for application
+                    gPayload fileRepoDeployStatus = client.globalcontroller.get_pipeline_info(pipelineId);
+                    app_status = Integer.parseInt(fileRepoDeployStatus.status_code);
+                    Thread.sleep(1000);
+                }
+                System.out.println("Started PipelineId: " + pipelineId);
+            } else {
+                System.out.println("Could not find second agent");
+            }
+
+        }
+
+        return pipelineId;
+
+    }
+
+    public String deploySingleNodeSTunnel(String pipelineName) throws InterruptedException {
+
+        //Check if there is an existing pipeline with the same name
+        String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
+        //If there is a pipeline remove it
+        if (pipelineId != null) {
+            client.globalcontroller.remove_pipeline(pipelineId);
+        }
+
+        //Location of latest stunnel
+        String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.1-SNAPSHOT/stunnel-1.1-SNAPSHOT.jar";
+
+        //Local save file
+        String pluginSavePath = uri.substring(uri.lastIndexOf('/') + 1);
+
+        if(!(new File(pluginSavePath).isFile())) {
+            //pull plugin down from github
+            getPlugin(uri, pluginSavePath);
+        }
+
+        //String pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.1-SNAPSHOT.jar";
+
+        //Upload plugin to repo
+        Map<String, String> sTunnelMap = client.globalcontroller.upload_plugin_global(pluginSavePath);
+
+        //Get details about plugin
+        String sTunnelConfigParamsString = client.messaging.getCompressedParam(sTunnelMap.get("configparams"));
+        Map<String, String> sTunnelConfigParams = client.messaging.getMapFromString(sTunnelConfigParamsString);
+
+        //Build the CADL config
+        Map<String, Object> cadl = new HashMap<>();
+        cadl.put("pipeline_id", "0");
+        cadl.put("pipeline_name", pipelineName);
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        List<Map<String, Object>> edges = new ArrayList<>();
+
+        Map<String, Object> params0 = new HashMap<>();
+        params0.put("pluginname", sTunnelConfigParams.get("pluginname"));
+        params0.put("md5", sTunnelConfigParams.get("md5"));
+        params0.put("version", sTunnelConfigParams.get("version"));
+        params0.put("location_region", client.api.getAPIRegionName());
+        params0.put("location_agent", client.api.getAPIAgentName());
+
+        Map<String, Object> node0 = new HashMap<>();
+        node0.put("type", "dummy");
+        node0.put("node_name", "Plugin 0");
+        node0.put("node_id", 0);
+        node0.put("isSource", false);
+        node0.put("workloadUtil", 0);
+        node0.put("params", params0);
+
+        Map<String, Object> params1 = new HashMap<>();
+        params1.put("pluginname", sTunnelConfigParams.get("pluginname"));
+        params1.put("md5", sTunnelConfigParams.get("md5"));
+        params1.put("version", sTunnelConfigParams.get("version"));
+        params1.put("location_region", client.api.getAPIRegionName());
+        params1.put("location_agent", client.api.getAPIAgentName());
+
+        Map<String, Object> node1 = new HashMap<>();
+        node1.put("type", "dummy");
+        node1.put("node_name", "Plugin 1");
+        node1.put("node_id", 1);
+        node1.put("isSource", false);
+        node1.put("workloadUtil", 0);
+        node1.put("params", params1);
+
+        Map<String, Object> edge0 = new HashMap<>();
+        edge0.put("edge_id", 0);
+        edge0.put("node_from", 0);
+        edge0.put("node_to", 1);
+        edge0.put("params", new HashMap<>());
+
+        nodes.add(node0);
+        nodes.add(node1);
+        edges.add(edge0);
+
+        cadl.put("nodes", nodes);
+        cadl.put("edges", edges);
+
+        //Submit pipeline
+        Map<String, String> reply = client.globalcontroller.submit_pipeline("0", cadl);
+        //Get pipelineId
+        pipelineId = reply.get("gpipeline_id");
+
+        System.out.println("Starting PipelineId: " + pipelineId);
+
+        int app_status = -1;
+
+        while (app_status != 10) {
+
+            //get identifier for application
+            gPayload fileRepoDeployStatus = client.globalcontroller.get_pipeline_info(pipelineId);
+            app_status = Integer.parseInt(fileRepoDeployStatus.status_code);
+            Thread.sleep(1000);
+        }
+        System.out.println("Started PipelineId: " + pipelineId);
+
+        return pipelineId;
+    }
+
+    public void getPlugin(String uri, String fileName) {
+
+        try{
+
+            URI srcUri = URI.create(uri);
+
+            SslContextFactory ssl = new SslContextFactory(true);
+
+            HttpClient client = new HttpClient(ssl);
+            try
+            {
+                client.start();
+
+                Request request = client.newRequest(srcUri);
+
+                //System.out.printf("Using HttpClient v%s%n", getHttpClientVersion());
+                System.out.printf("Requesting: %s%n", srcUri);
+                InputStreamResponseListener streamResponseListener = new InputStreamResponseListener();
+                request.send(streamResponseListener);
+                Response response = streamResponseListener.get(5, TimeUnit.SECONDS);
+
+                if (response.getStatus() != HttpStatus.OK_200)
+                {
+                    throw new IOException(
+                            String.format("Failed to GET URI [%d %s]: %s",
+                                    response.getStatus(),
+                                    response.getReason(),
+                                    srcUri));
+                }
+
+                Path filePath = Paths.get(fileName);
+
+                try (InputStream inputStream = streamResponseListener.getInputStream();
+                     OutputStream outputStream = Files.newOutputStream(filePath))
+                {
+                    IO.copy(inputStream, outputStream);
+                }
+
+                System.out.printf("Downloaded %s%n", srcUri);
+                System.out.printf("Destination: %s (%,d bytes)%n", filePath.toString(), Files.size(filePath));
+            }
+            finally
+            {
+                client.stop();
+            }
+
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+    }
+
+
 
 }

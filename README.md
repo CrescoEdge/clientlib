@@ -87,7 +87,7 @@ client.messaging
 
 This example code will deploy two stunnel plugins to the same agent that the client connections to.  One plugin will connect to the existing IPerf3 listening port of 5201.  The other plugin will open a socket on port 5202.  You will launch your IPerf3 client to the stunnel listening port, which will forward the traffic to the other plugin.
 
-1. Launch the [iPerf3](https://iperf.fr/iperf-download.php) server on the same node as your agent.
+1. Launch the [iPerf3](https://iperf.fr/iperf-download.php) server on the same node as your agent.  Note the default listening port of 5201, which corresponds to the configuration "action_src_port": "5201"
 
 ```bash
 ./iperf3 -s
@@ -97,29 +97,29 @@ Server listening on 5201
 ```
 2. Uncomment the following lines in example.Launcher
 ```java
-SingleNodeTunnelTest singleNodeTunnelTest = new SingleNodeTunnelTest(client);
-singleNodeTunnelTest.deploySingleNodeSTunnel("iperf_tunnel");
+TunnelTesting tunnelTesting = new TunnelTesting(client);
+tunnelTesting.singleNodeTunnelTest();
 ```
-3. Launch the iPerf client on the same node as your agent
+3. Launch the iPerf client on the same node as your agent, setting the destination port to 5202. Note the destination port of 5202 corresponding to the configuration "action_dst_port": "5202".
 ```bash
-./iperf3 -c localhost 5202
-Connecting to host localhost, port 5201
-[  6] local 127.0.0.1 port 54749 connected to 127.0.0.1 port 5201
+./iperf3 -c localhost -p 5202
+Connecting to host localhost, port 5202
+[  6] local 127.0.0.1 port 55131 connected to 127.0.0.1 port 5202
 [ ID] Interval           Transfer     Bandwidth
-[  6]   0.00-1.00   sec  6.94 GBytes  59.6 Gbits/sec                  
-[  6]   1.00-2.00   sec  7.14 GBytes  61.3 Gbits/sec                  
-[  6]   2.00-3.00   sec  7.25 GBytes  62.3 Gbits/sec                  
-[  6]   3.00-4.00   sec  7.32 GBytes  62.9 Gbits/sec                  
-[  6]   4.00-5.00   sec  7.09 GBytes  60.9 Gbits/sec                  
-[  6]   5.00-6.00   sec  7.37 GBytes  63.3 Gbits/sec                  
-[  6]   6.00-7.00   sec  7.36 GBytes  63.2 Gbits/sec                  
-[  6]   7.00-8.00   sec  7.38 GBytes  63.4 Gbits/sec                  
-[  6]   8.00-9.00   sec  7.32 GBytes  62.9 Gbits/sec                  
-[  6]   9.00-10.00  sec  7.38 GBytes  63.4 Gbits/sec                  
+[  6]   0.00-1.00   sec  1.09 GBytes  9.32 Gbits/sec                  
+[  6]   1.00-2.00   sec  1.09 GBytes  9.37 Gbits/sec                  
+[  6]   2.00-3.00   sec   654 MBytes  5.49 Gbits/sec                  
+[  6]   3.00-4.00   sec   537 MBytes  4.50 Gbits/sec                  
+[  6]   4.00-5.00   sec   408 MBytes  3.43 Gbits/sec                  
+[  6]   5.00-6.00   sec   555 MBytes  4.65 Gbits/sec                  
+[  6]   6.00-7.00   sec   532 MBytes  4.47 Gbits/sec                  
+[  6]   7.00-8.00   sec   538 MBytes  4.51 Gbits/sec                  
+[  6]   8.00-9.00   sec   630 MBytes  5.29 Gbits/sec                  
+[  6]   9.00-10.00  sec   563 MBytes  4.72 Gbits/sec                  
 - - - - - - - - - - - - - - - - - - - - - - - - -
 [ ID] Interval           Transfer     Bandwidth
-[  6]   0.00-10.00  sec  72.6 GBytes  62.3 Gbits/sec                  sender
-[  6]   0.00-10.00  sec  72.6 GBytes  62.3 Gbits/sec                  receiver
+[  6]   0.00-10.00  sec  6.49 GBytes  5.58 Gbits/sec                  sender
+[  6]   0.00-10.00  sec  5.93 GBytes  5.09 Gbits/sec                  receiver
 ```
 
 
