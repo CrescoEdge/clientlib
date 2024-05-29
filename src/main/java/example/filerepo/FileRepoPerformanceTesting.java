@@ -1,4 +1,4 @@
-package example;
+package example.filerepo;
 
 import com.google.gson.Gson;
 import crescoclient.CrescoClient;
@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class FileRepoPerformanceTesting {
 
     private final AtomicBoolean ioLock = new AtomicBoolean();
-    private Map<String,TransferStream> transferStreams;
+    private Map<String, TransferStream> transferStreams;
 
     private CrescoClient crescoClient;
     public long bytesTransferred = 0;

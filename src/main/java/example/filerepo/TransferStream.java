@@ -1,4 +1,4 @@
-package example;
+package example.filerepo;
 
 
 import java.io.PipedInputStream;

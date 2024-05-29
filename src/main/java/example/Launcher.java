@@ -3,6 +3,7 @@ package example;
 import crescoclient.*;
 import crescoclient.core.OnMessageCallback;
 import crescoclient.dataplane.DataPlaneInterface;
+import example.stunnel.SingleNodeTunnelTest;
 
 public class Launcher {
 
@@ -10,7 +11,7 @@ public class Launcher {
 
         String host = "localhost";
         int port = 8282;
-        String service_key = "b03368d5-cd5b-46a4-a351-79e51166569c";
+        String service_key = "a6f7f889-2500-46d3-9484-5b6499186456";
 
         CrescoClient client = new CrescoClient(host,port,service_key);
         client.connect();
@@ -19,34 +20,8 @@ public class Launcher {
 
         if(client.connected()) {
 
-            class BytePrinter implements OnMessageCallback {
-
-                @Override
-                public void onMessage(String msg) {
-
-                    System.out.println("TEXT MESSAGE!");
-
-                }
-
-                @Override
-                public void onMessage(byte[] b, int offset, int length) {
-                    //bytesTransferred = bytesTransferred + length;
-                    //String s = new String(b, StandardCharsets.UTF_8);
-                    //System.out.println("binary: " + s);
-                    //System.out.println("length: " + b.length + " offset: " + offset + " length: " + length);
-                }
-            }
-
-            DataPlaneInterface dataPlaneRec = client.getDataPlane("tabby=pooter", new BytePrinter());
-            dataPlaneRec.start();
-            while(!dataPlaneRec.connected()) {
-                Thread.sleep(1000);
-            }
-            System.out.println("WOOO");
-
-            while(true) {
-                Thread.sleep(1000);
-            }
+            SingleNodeTunnelTest singleNodeTunnelTest = new SingleNodeTunnelTest(client);
+            singleNodeTunnelTest.deploySingleNodeSTunnel("iperf_tunnel");
 
             //System.out.println("ARE YOU BLOCKING? 2");
             //BinaryPerformanceTesting binaryPerformanceTesting = new BinaryPerformanceTesting(client);
@@ -76,6 +51,37 @@ public class Launcher {
             updateMessage.setStringProperty("filerepo_name",filerepoName);
             updateMessage.setBooleanProperty("broadcast",Boolean.TRUE);
 
+             */
+
+            /*
+            class BytePrinter implements OnMessageCallback {
+
+                @Override
+                public void onMessage(String msg) {
+
+                    System.out.println("TEXT MESSAGE!");
+
+                }
+
+                @Override
+                public void onMessage(byte[] b, int offset, int length) {
+                    //bytesTransferred = bytesTransferred + length;
+                    //String s = new String(b, StandardCharsets.UTF_8);
+                    //System.out.println("binary: " + s);
+                    //System.out.println("length: " + b.length + " offset: " + offset + " length: " + length);
+                }
+            }
+
+            DataPlaneInterface dataPlaneRec = client.getDataPlane("tabby=pooter", new BytePrinter());
+            dataPlaneRec.start();
+            while(!dataPlaneRec.connected()) {
+                Thread.sleep(1000);
+            }
+            System.out.println("WOOO");
+
+            while(true) {
+                Thread.sleep(1000);
+            }
              */
 
         } else {

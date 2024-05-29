@@ -24,6 +24,22 @@ public class GlobalController {
         utils = new Utils();
     }
 
+    public String getPipelineIdByName(String pipelineName) {
+
+        String pipelineId = null;
+        try {
+            List<Map<String, String>> pipelineList = get_pipeline_list();
+            for (Map<String, String> pipeline : pipelineList) {
+                if (pipeline.get("pipeline_name").equals(pipelineName)) {
+                    pipelineId = pipeline.get("pipeline_id");
+                }
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return pipelineId;
+    }
+
     public List<Map<String,String>> get_pipeline_list(){
         List<Map<String,String>> responce = null;
         try {

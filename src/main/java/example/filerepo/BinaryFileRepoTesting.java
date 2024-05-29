@@ -1,4 +1,4 @@
-package example;
+package example.filerepo;
 
 import com.google.gson.Gson;
 import crescoclient.CrescoClient;
@@ -8,11 +8,11 @@ import crescoclient.dataplane.DataPlaneInterface;
 import java.nio.ByteBuffer;
 import java.util.*;
 
-public class BinaryPerformanceTesting {
+public class BinaryFileRepoTesting {
 
     private CrescoClient client;
     public long bytesTransferred = 0;
-    public BinaryPerformanceTesting(CrescoClient client) {
+    public BinaryFileRepoTesting(CrescoClient client) {
         this.client = client;
     }
 
@@ -65,11 +65,12 @@ public class BinaryPerformanceTesting {
 
             String queryString = gson.toJson(configDB);
 
+
             class BytePrinter implements OnMessageCallback {
 
                 @Override
                 public void onMessage(String msg) {
-                    System.out.println("TEXT MESSAGE!");
+                    System.out.println("TEXT MESSAGE! " + msg);
                 }
 
                 @Override
@@ -87,34 +88,27 @@ public class BinaryPerformanceTesting {
                 Thread.sleep(1000);
             }
 
+            String filerepoName = "repopipe";
+
+            Map<String,String> update = new HashMap<>();
+            update.put("action","transfer");
+            update.put("filerepo_name",filerepoName);
+
+            //String queryString = "filerepo_stream_name='" + filerepoName + "' AND broadcast";
+
+            //((incomingMap.containsKey("transfer_id")) && (incomingMap.containsKey("transaction_id"))) {
             DataPlaneInterface dataPlaneSend = client.getDataPlane(queryString);
             dataPlaneSend.start();
             while(!dataPlaneSend.connected()) {
                 Thread.sleep(1000);
             }
 
-            Random random = new Random();
-            int byteSize = 32768 * 10;
 
-            for(int i=0; i<10; i++) {
-                byte[] byteArray = new byte[byteSize];
-                random.nextBytes(byteArray);
-                ByteBuffer buffer = ByteBuffer.wrap(byteArray);
-                dataPlaneSend.sendPartial(buffer, false);
-            }
-            byte[] byteArray = new byte[byteSize];
-            random.nextBytes(byteArray);
-            ByteBuffer buffer = ByteBuffer.wrap(byteArray);
-            dataPlaneSend.sendPartial(buffer, true);
 
-            /*
-            for(int i=0; i<100000; i++) {
-                byte[] byteArray = new byte[byteSize];
-                random.nextBytes(byteArray);
-                ByteBuffer buffer = ByteBuffer.wrap(byteArray);
-                dataPlaneSend.send(buffer);
+            while(true) {
+                Thread.sleep(1000);
+                dataPlaneSend.send(new Gson().toJson(update));
             }
-            */
 
         } catch (Exception ex) {
             ex.printStackTrace();

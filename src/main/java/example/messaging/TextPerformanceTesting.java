@@ -1,4 +1,4 @@
-package example;
+package example.messaging;
 
 import com.google.gson.Gson;
 import crescoclient.CrescoClient;

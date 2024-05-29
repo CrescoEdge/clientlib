@@ -27,11 +27,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class Testers {
+public class TestUtils {
 
     private Gson gson;
     private CrescoClient client;
-    public Testers(CrescoClient client) {
+    public TestUtils(CrescoClient client) {
         this.client = client;
         gson = new Gson();
     }
@@ -308,7 +308,6 @@ public class Testers {
         return pipelineId;
 
     }
-
 
     public String deployFileRepo(String pipelineName, String repo_name_1, String repo_path_1, String repo_name_2, String repo_path_2) throws InterruptedException {
 
@@ -654,7 +653,6 @@ public class Testers {
 
 
     }
-
 
     /*
             System.exit(0);
