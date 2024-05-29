@@ -69,6 +69,19 @@ client.getLogStreamer()
 client.messaging
 
 
+## Example Use Cases
+
+### Binary File Repo Testing
+
+### Binary Performance Testing
+
+### File Repo Performance Testing
+
+### Text Performance Testing
+
+### Transfer Stream
+
+### Tunnel Testing
 
 
 
