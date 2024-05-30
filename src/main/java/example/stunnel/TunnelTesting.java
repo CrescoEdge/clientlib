@@ -46,15 +46,18 @@ public class TunnelTesting {
     }
 
     public void twoAgentTunnelTest() throws InterruptedException {
+        twoAgentTunnelTest(null, null);
+    }
+
+    public void twoAgentTunnelTest(String clientRegion, String clientAgent) throws InterruptedException {
 
         String pipelineName = "sTunnelExample two agent";
         String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
         client.globalcontroller.remove_pipeline(pipelineId);
 
-        String sTunnelAppId = deployMultiNodeSTunnel(pipelineName);
+        String sTunnelAppId = deployMultiNodeSTunnel(pipelineName, clientRegion, clientAgent);
         runTest(sTunnelAppId);
     }
-
 
 
     public void runTest(String sTunnelAppId) {
@@ -204,8 +207,7 @@ public class TunnelTesting {
 
         return pipelineId;
     }
-    public String deployMultiNodeSTunnel(String pipelineName) throws InterruptedException {
-
+    public String deployMultiNodeSTunnel(String pipelineName, String clientRegion, String clientAgent) throws InterruptedException {
 
         //Check if there is an existing pipeline with the same name
         String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
@@ -225,12 +227,30 @@ public class TunnelTesting {
             getPlugin(uri, pluginSavePath);
         }
 
-        String globalAgent = client.api.getGlobalAgent();
-        List<Map<String,String>> agentList =  client.globalcontroller.get_agent_list(client.api.getGlobalRegion()).get("agents");
-        String clientAgent = null;
-        for(Map<String,String> agentMap : agentList) {
-            if(!agentMap.get("name").equals(globalAgent)) {
-                clientAgent = agentMap.get("name");
+        if(clientRegion == null) {
+            String globalRegion = client.api.getGlobalRegion();
+            List<Map<String, String>> regionList = client.globalcontroller.get_region_list().get("regions");
+            for (Map<String, String> regionMap : regionList) {
+                if (!regionMap.get("name").equals(globalRegion)) {
+                    clientRegion = regionMap.get("name");
+                }
+            }
+            if(clientRegion == null) {
+                clientRegion = globalRegion;
+            }
+
+            String globalAgent = client.api.getGlobalAgent();
+            if(clientAgent == null) {
+
+                List<Map<String, String>> agentList = client.globalcontroller.get_agent_list(clientRegion).get("agents");
+                for (Map<String, String> agentMap : agentList) {
+                    if (!agentMap.get("name").equals(globalAgent)) {
+                        clientAgent = agentMap.get("name");
+                    }
+                }
+            }
+            if(clientAgent == null) {
+                clientAgent = globalAgent;
             }
         }
 
@@ -271,7 +291,11 @@ public class TunnelTesting {
             params1.put("pluginname", sTunnelConfigParams.get("pluginname"));
             params1.put("md5", sTunnelConfigParams.get("md5"));
             params1.put("version", sTunnelConfigParams.get("version"));
-            params1.put("location_region", client.api.getAPIRegionName());
+            if(clientRegion != null) {
+                params1.put("location_region", clientRegion);
+            } else {
+                params1.put("location_region", client.api.getAPIRegionName());
+            }
             params1.put("location_agent", clientAgent);
 
             Map<String, Object> node1 = new HashMap<>();
