@@ -83,9 +83,16 @@ client.messaging
 
 ### Tunnel Testing
 
-#### Single Agent Tunnel Test
+#### Agent Tunnel Test
 
-This example code will deploy two stunnel plugins to the same agent that the client connections to.  One plugin will connect to the existing IPerf3 listening port of 5201.  The other plugin will open a socket on port 5202.  You will launch your IPerf3 client to the stunnel listening port, which will forward the traffic to the other plugin.
+This example code will deploy two stunnel plugins, a source that will listen on port 5201 and a destination, which will connect to an existing socket.  One plugin will connect to the existing IPerf3 listening port of 5201.  The other plugin will open a socket on port 5202.  You will launch your IPerf3 client to the stunnel listening port, which will forward the traffic to the other plugin.
+
+
+The plugins will be deployed differently based on the agent topology:
+* Single agent: The two plugins will be deployed on the same agent
+* Two agents: Global controller with a second agent: The listening (source) plugin will be deployed on the global controller, and the sending plugin will be deployed on the agent.
+* Three agents: Global controller, with a connected regional controller, with an agent connected to the regional controller.  The listening (source) plugin will be deployed on the global controller, and the sending plugin will be deployed on the agent, which is connected to the regional controller. 
+
 
 1. Launch the [iPerf3](https://iperf.fr/iperf-download.php) server on the same node as your agent.  Note the default listening port of 5201, which corresponds to the configuration "action_src_port": "5201"
 
@@ -100,7 +107,7 @@ Server listening on 5201
 3. Uncomment the following lines in example.Launcher
 ```java
 TunnelTesting tunnelTesting = new TunnelTesting(client);
-tunnelTesting.singleNodeTunnelTest();
+tunnelTesting.tunnelTest();
 ```
 4. Launch the iPerf client on the same node as your agent, setting the destination port to 5202. Note the destination port of 5202 corresponding to the configuration "action_dst_port": "5202".
 ```bash
@@ -123,46 +130,3 @@ Connecting to host localhost, port 5202
 [  6]   0.00-10.00  sec  6.49 GBytes  5.58 Gbits/sec                  sender
 [  6]   0.00-10.00  sec  5.93 GBytes  5.09 Gbits/sec                  receiver
 ```
-
-#### Two Agent Tunnel Test
-
-This example code will deploy two stunnel plugins to the same agent that the client connections to.  One plugin will connect to the existing IPerf3 listening port of 5201.  The other plugin will open a socket on port 5202.  You will launch your IPerf3 client to the stunnel listening port, which will forward the traffic to the other plugin.
-
-1. Launch the [iPerf3](https://iperf.fr/iperf-download.php) server on the same node as your agent.  Note the default listening port of 5201, which corresponds to the configuration "action_src_port": "5201"
-
-```bash
-./iperf3 -s
------------------------------------------------------------
-Server listening on 5201
------------------------------------------------------------
-```
-2. Launch a Cresco agent configured as a global controller with a WSAPI configured, then launch a second agent that will connect to the existing global controller.
-
-3. Uncomment the following lines in example.Launcher
-```java
-TunnelTesting tunnelTesting = new TunnelTesting(client);
-tunnelTesting.twoAgentTunnelTest();
-```
-4. Launch the iPerf client on the same node as your agent, setting the destination port to 5202. Note the destination port of 5202 corresponding to the configuration "action_dst_port": "5202".
-```bash
-./iperf3 -c localhost -p 5202
-Connecting to host localhost, port 5202
-[  6] local 127.0.0.1 port 55531 connected to 127.0.0.1 port 5202
-[ ID] Interval           Transfer     Bandwidth
-[  6]   0.00-1.00   sec   694 MBytes  5.82 Gbits/sec                  
-[  6]   1.00-2.00   sec   291 MBytes  2.44 Gbits/sec                  
-[  6]   2.00-3.00   sec   202 MBytes  1.69 Gbits/sec                  
-[  6]   3.00-4.00   sec   447 MBytes  3.75 Gbits/sec                  
-[  6]   4.00-5.00   sec   233 MBytes  1.95 Gbits/sec                  
-[  6]   5.00-6.00   sec   208 MBytes  1.75 Gbits/sec                  
-[  6]   6.00-7.00   sec   458 MBytes  3.84 Gbits/sec                  
-[  6]   7.00-8.00   sec   353 MBytes  2.96 Gbits/sec                  
-[  6]   8.00-9.00   sec   402 MBytes  3.38 Gbits/sec                  
-[  6]   9.00-10.00  sec   399 MBytes  3.34 Gbits/sec                  
-- - - - - - - - - - - - - - - - - - - - - - - - -
-[ ID] Interval           Transfer     Bandwidth
-[  6]   0.00-10.00  sec  3.60 GBytes  3.09 Gbits/sec                  sender
-[  6]   0.00-10.00  sec   858 MBytes   720 Mbits/sec                  receiver
-```
-
-

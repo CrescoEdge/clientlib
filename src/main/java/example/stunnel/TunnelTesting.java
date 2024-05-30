@@ -35,23 +35,13 @@ public class TunnelTesting {
         this.client = client;
     }
 
-    public void singleAgentTunnelTest() throws InterruptedException {
-
-        String pipelineName = "sTunnelExample single agent";
-        String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
-        client.globalcontroller.remove_pipeline(pipelineId);
-
-        String sTunnelAppId = deploySingleNodeSTunnel(pipelineName);
-        runTest(sTunnelAppId);
+    public void tunnelTest() throws InterruptedException {
+        tunnelTest(null, null);
     }
 
-    public void twoAgentTunnelTest() throws InterruptedException {
-        twoAgentTunnelTest(null, null);
-    }
+    public void tunnelTest(String clientRegion, String clientAgent) throws InterruptedException {
 
-    public void twoAgentTunnelTest(String clientRegion, String clientAgent) throws InterruptedException {
-
-        String pipelineName = "sTunnelExample two agent";
+        String pipelineName = "sTunnelExample tunnel test";
         String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
         client.globalcontroller.remove_pipeline(pipelineId);
 
