@@ -17,6 +17,7 @@ public class Launcher {
 
         CrescoClient client = new CrescoClient(host,port,service_key);
         client.connect();
+        
 
         //System.out.println("ARE YOU BLOCKING?");
 
