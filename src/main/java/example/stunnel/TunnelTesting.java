@@ -207,7 +207,8 @@ public class TunnelTesting {
         }
 
         //Location of latest stunnel
-        String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.1-SNAPSHOT/stunnel-1.1-SNAPSHOT.jar";
+        String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.2-SNAPSHOT/stunnel-1.2-SNAPSHOT.jar";
+        //String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.1-SNAPSHOT/stunnel-1.1-SNAPSHOT.jar";
 
         //Local save file
         String pluginSavePath = uri.substring(uri.lastIndexOf('/') + 1);
@@ -216,6 +217,8 @@ public class TunnelTesting {
             //pull plugin down from github
             getPlugin(uri, pluginSavePath);
         }
+
+        //pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.2-SNAPSHOT.jar";
 
         if(clientRegion == null) {
             String globalRegion = client.api.getGlobalRegion();
