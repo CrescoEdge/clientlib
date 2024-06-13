@@ -48,10 +48,83 @@ if(client.connected()) {
 ```
 
 ### Admin
-client.admin
+
+These functions are related to the underlying systems that support the agent
+
+#### killjvm
+
+```java 
+public void killjvm(String dst_region, String dst_agent)
+```
+Description: Kill the underlying JVM that is running the agent
+
+#### restartcontroller
+
+```java 
+public void restartcontroller(String dst_region, String dst_agent)
+```
+Description: Restart the embedded agent controller plugin
+
+
+#### restartframework
+
+```java 
+public void restartframework(String dst_region, String dst_agent)
+```
+Description: Restart the underlying OSGi framework supporting the agent 
+
 
 ### Agents
-client.agents
+
+#### get_controller_status
+
+```java 
+public String get_controller_status(String dst_region, String dst_agent) 
+```
+Description: Reports the status of the controller
+
+
+#### add_plugin_agent
+
+```java 
+Map<String,String> add_plugin_agent(String dst_region, String dst_agent, Map<String,String> configparams, Map<String,String> edges)
+```
+Description: Method to directly add plugin to an agent outside of a CADL
+
+
+#### cepadd
+
+```java 
+public Map<String,String> cepadd(String input_stream, String input_stream_dec, String output_stream, String output_stream_desc, String query, String dst_region, String dst_agent)
+```
+Description: Configure complext event processor on the dataplane
+
+
+#### remove_plugin_agent
+
+```java 
+public Map<String,String> remove_plugin_agent(String dst_region, String dst_agent, String plugin_id)
+```
+Description: Method to directly remove plugin to an agent outside of a CADL
+
+#### get_broadcast_discovery
+
+```java 
+public Map<String,String> get_broadcast_discovery(String dst_region, String dst_agent)
+```
+Description: Get broadcast discovery from agent
+
+
+#### get_log
+
+```java 
+public Map<String,String> get_log(String dst_region, String dst_agent)
+```
+Description: Get log from remote agent
+
+
+*There are several more functions that need to be added*
+
 
 ### API
 client.api 
