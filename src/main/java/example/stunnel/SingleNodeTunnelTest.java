@@ -46,7 +46,7 @@ public class SingleNodeTunnelTest {
         }
 
         //Location of latest stunnel
-        String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.1-SNAPSHOT/stunnel-1.1-SNAPSHOT.jar";
+        String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.1-SNAPSHOT/stunnel-1.2-SNAPSHOT.jar";
 
         //Local save file
         String pluginSavePath = uri.substring(uri.lastIndexOf('/') + 1);
@@ -56,7 +56,7 @@ public class SingleNodeTunnelTest {
             getPlugin(uri, pluginSavePath);
         }
 
-        //String pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.1-SNAPSHOT.jar";
+        //String pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.2-SNAPSHOT.jar";
 
         //Upload plugin to repo
         Map<String, String> sTunnelMap = client.globalcontroller.upload_plugin_global(pluginSavePath);

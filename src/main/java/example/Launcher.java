@@ -11,7 +11,6 @@ public class Launcher {
     public static void main(String[] args) throws Exception {
 
         String host = "localhost";
-        //String host = "128.163.202.50";
         int port = 8282;
         String service_key = "a6f7f889-2500-46d3-9484-5b6499186456";
 
