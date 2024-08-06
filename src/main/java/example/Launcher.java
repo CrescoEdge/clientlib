@@ -3,6 +3,7 @@ package example;
 import crescoclient.*;
 import crescoclient.core.OnMessageCallback;
 import crescoclient.dataplane.DataPlaneInterface;
+import example.filerepo.FileRepoPerformanceTesting;
 import example.stunnel.SingleNodeTunnelTest;
 import example.stunnel.TunnelTesting;
 
@@ -23,7 +24,6 @@ public class Launcher {
         if(client.connected()) {
 
             TunnelTesting tunnelTesting = new TunnelTesting(client);
-            //tunnelTesting.singleAgentTunnelTest();
             tunnelTesting.tunnelTest();
 
             //System.out.println("ARE YOU BLOCKING? 2");
