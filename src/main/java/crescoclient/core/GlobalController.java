@@ -41,7 +41,7 @@ public class GlobalController {
     }
 
     public List<Map<String,String>> get_pipeline_list(){
-        List<Map<String,String>> responce = null;
+        List<Map<String,String>> response = null;
         try {
 
             String message_event_type = "EXEC";
@@ -51,12 +51,12 @@ public class GlobalController {
             Map<String,String> reply = messaging.global_controller_msgevent(true,message_event_type,message_payload);
             String pluginlistStr = messaging.getCompressedParam(reply.get("pipelineinfo"));
             Map<String,List<Map<String,String>>> pluginlist = messaging.getMapListMapFromString(pluginlistStr);
-            responce = pluginlist.get("pipelines");
+            response = pluginlist.get("pipelines");
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return  responce;
+        return  response;
     }
 
     public gPayload get_pipeline_info(String pipeline_id) {
@@ -218,7 +218,7 @@ public class GlobalController {
     }
 
     public Map<String,String> upload_plugin_global(String jar_file_path) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
 
             Path jar_file = Paths.get(jar_file_path);
@@ -232,7 +232,7 @@ public class GlobalController {
                 message_payload.put("configparams",messaging.setCompressedParam(json_configparams));
                 message_payload.put("jardata",messaging.setCompressedDataParam(Files.readAllBytes(jar_file)));
 
-                responce = messaging.global_controller_msgevent(true,message_event_type,message_payload);
+                response = messaging.global_controller_msgevent(true,message_event_type,message_payload);
 
             } else {
                 System.out.println("upload_jar_info: file does not exist: " + jar_file_path);
@@ -242,7 +242,7 @@ public class GlobalController {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public Map<String,List<Map<String,String>>> get_region_resources(String dst_region) {

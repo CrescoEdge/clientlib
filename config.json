@@ -1,0 +1,40 @@
+{
+    "host": "localhost",
+    "port": "8282",
+    "service_key": "c988701a-5f2a-43ac-b915-156049c5d1ee",
+    "tenant_id": "0",
+    "sTunnel":{
+        "pluginSavePath": "",
+        "agents": {
+
+        },
+        "pipelines": {
+            "sTunnelExample tunnel test": {
+                "nodes": {
+                    "0": {
+                        "type": "dummy",
+                        "node_name": "GC",
+                        "is_source": false,
+                        "workload_util": "0",
+                        "location_region": "global-region",
+                        "location_agent": "global-controller"
+                    },
+                    "1": {
+                        "type": "dummy",
+                        "node_name": "Agent",
+                        "is_source": false,
+                        "workload_util": "0",
+                        "location_region": "global-region",
+                        "location_agent": "myagent"
+                    }
+                },
+                "edges": {
+                    "1234": {
+                        "node_from": "0",
+                        "node_to": "1"
+                    }
+                }
+            }
+        }
+    }
+}
