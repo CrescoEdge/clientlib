@@ -25,7 +25,7 @@ public class Launcher {
 
             TunnelTesting tunnelTesting = new TunnelTesting(client);
             //tunnelTesting.tunnelTest();
-            tunnelTesting.tunnelTest("global-region", "global-controller");
+            tunnelTesting.tunnelTest("global-region", "agent-controller");
 
 
             //System.out.println("ARE YOU BLOCKING? 2");
