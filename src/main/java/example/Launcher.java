@@ -24,7 +24,9 @@ public class Launcher {
         if(client.connected()) {
 
             TunnelTesting tunnelTesting = new TunnelTesting(client);
-            tunnelTesting.tunnelTest();
+            //tunnelTesting.tunnelTest();
+            tunnelTesting.tunnelTest("global-region", "global-controller");
+
 
             //System.out.println("ARE YOU BLOCKING? 2");
             //BinaryPerformanceTesting binaryPerformanceTesting = new BinaryPerformanceTesting(client);
