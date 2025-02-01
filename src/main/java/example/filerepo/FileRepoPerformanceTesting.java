@@ -159,7 +159,7 @@ public class FileRepoPerformanceTesting {
         if(launchRepo) {
 
             //Location of latest filerepo
-            String uri = "https://github.com/CrescoEdge/filerepo/releases/download/1.1-SNAPSHOT/filerepo-1.1-SNAPSHOT.jar";
+            String uri = "https://github.com/CrescoEdge/filerepo/releases/download/1.2-SNAPSHOT/filerepo-1.2-SNAPSHOT.jar";
 
             //Local save file
             String pluginSavePath = uri.substring(uri.lastIndexOf('/') + 1);
@@ -169,7 +169,7 @@ public class FileRepoPerformanceTesting {
                 getPlugin(uri, pluginSavePath);
             }
 
-            pluginSavePath = "/Users/cody/IdeaProjects/filerepo/target/filerepo-1.1-SNAPSHOT.jar";
+            pluginSavePath = "/Users/cody/IdeaProjects/filerepo/target/filerepo-1.2-SNAPSHOT.jar";
 
             //Upload plugin to repo
             Map<String, String> fileRepoMap = crescoClient.globalcontroller.upload_plugin_global(pluginSavePath);

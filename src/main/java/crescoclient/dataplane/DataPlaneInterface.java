@@ -53,6 +53,8 @@ public class DataPlaneInterface {
         wsConfig.put("api_path","/api/dataplane");
         wsConfig.put("stream_query", streamQuery);
 
+        System.out.println("DataPlaneInterface query: " + streamQuery);
+
         this.onMessageCallback = onMessageCallback;
         wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
 
@@ -123,6 +125,7 @@ public class DataPlaneInterface {
         @Override
         public void onConnect(Session sess) {
             try {
+                System.out.println("WSLogStreamerCallback query: " + wsConfig.get("stream_query"));
                 sess.getRemote().sendString(wsConfig.get("stream_query"));
             } catch (IOException e) {
                 throw new RuntimeException(e);

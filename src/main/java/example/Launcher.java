@@ -4,6 +4,8 @@ import crescoclient.*;
 import crescoclient.core.OnMessageCallback;
 import crescoclient.dataplane.DataPlaneInterface;
 import example.filerepo.FileRepoPerformanceTesting;
+import example.messaging.BinaryPerformanceTesting;
+import example.messaging.TextPerformanceTesting;
 import example.stunnel.SingleNodeTunnelTest;
 import example.stunnel.TunnelTesting;
 
@@ -23,9 +25,40 @@ public class Launcher {
 
         if(client.connected()) {
 
-            TunnelTesting tunnelTesting = new TunnelTesting(client);
+
+            class BytePrinter implements OnMessageCallback {
+
+                @Override
+                public void onMessage(String msg) {
+
+                    System.out.println("TEXT MESSAGE!");
+
+                }
+
+                @Override
+                public void onMessage(byte[] b, int offset, int length) {
+                    //bytesTransferred = bytesTransferred + length;
+                    //String s = new String(b, StandardCharsets.UTF_8);
+                    //System.out.println("binary: " + s);
+                    //System.out.println("length: " + b.length + " offset: " + offset + " length: " + length);
+                }
+            }
+
+            String DPQuery = "region_id IS NOT NULL AND agent_id IS NOT NULL";
+            DataPlaneInterface dataPlaneRec = client.getDataPlane(DPQuery, new BytePrinter());
+            dataPlaneRec.start();
+            while(!dataPlaneRec.connected()) {
+                Thread.sleep(1000);
+            }
+            System.out.println("WOOO");
+
+            while(true) {
+                Thread.sleep(1000);
+            }
+
+            //TunnelTesting tunnelTesting = new TunnelTesting(client);
             //tunnelTesting.tunnelTest();
-            tunnelTesting.tunnelTest("global-region", "agent-controller");
+            //tunnelTesting.tunnelTest("global-region", "agent-controller");
 
 
             //System.out.println("ARE YOU BLOCKING? 2");

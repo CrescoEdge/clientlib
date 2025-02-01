@@ -69,12 +69,14 @@ public class TextPerformanceTesting {
                 @Override
                 public void onMessage(String msg) {
 
-                    //System.out.println("TEXT MESSAGE!");
+                    System.out.println("TEXT MESSAGE!  " + msg);
                     bytesTransferred += 1;
                 }
 
                 @Override
                 public void onMessage(byte[] b, int offset, int length) {
+                    System.out.println("BYTE MESSAGE!");
+
                     //bytesTransferred = bytesTransferred + length;
                     //String s = new String(b, StandardCharsets.UTF_8);
                     //System.out.println("binary: " + s);
