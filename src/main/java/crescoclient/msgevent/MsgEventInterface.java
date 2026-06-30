@@ -14,21 +14,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MsgEventInterface {
 
-    private AtomicBoolean threadMapLock = new AtomicBoolean();
-    private AtomicBoolean queueLock = new AtomicBoolean();
     private Map<String,String> wsConfig;
     private final Logger LOG = Log.getLogger(MsgEventInterface.class);
     private WSInterface wsInterface;
 
-    private Map<String, Long> threadMap;
-    private Map<Long, LinkedBlockingQueue<String>> messageQueueMap;
+    // The wsapi protocol replies with exactly one response per request and carries no
+    // correlation id, so the contract is one-outstanding-RPC-per-connection. A single
+    // reply queue (drained one-per-call) is the correct, race-free model. The previous
+    // thread/requestId map used the constant Sec-WebSocket-Key and dropped replies via an
+    // NPE under rapid sequential calls, which deadlocked recv().
+    private final LinkedBlockingQueue<String> messageQueue = new LinkedBlockingQueue<>();
+    private int rpcTimeoutSeconds = 30;
 
     public MsgEventInterface(String host, int port, String serviceKey) {
-
-        messageQueueMap = Collections.synchronizedMap(new HashMap<>());
-        threadMap = Collections.synchronizedMap(new HashMap<>());
-
-        //messageQueue = new SynchronousQueue<>();
 
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
@@ -50,68 +48,32 @@ public class MsgEventInterface {
         return wsInterface.getPluginName();
     }
 
-    private long getRequestThreadId(String requestId) {
-        long threadId = -1;
-        synchronized (threadMapLock) {
-            threadId = threadMap.get(requestId);
-        }
-        return threadId;
-    }
-
-    private void setRequestThreadId(String requestId, long threadId) {
-        synchronized (threadMapLock) {
-            threadMap.put(requestId, threadId);
-        }
-    }
-
-    private void removeRequestThreadId(String requestId) {
-        synchronized (threadMapLock) {
-            threadMap.remove(requestId);
-        }
-    }
-
     public void send(boolean isRPC, String message) {
 
         try {
-
             Session session = wsInterface.getSession(true);
-            if(isRPC) {
-                String requestId = session.getUpgradeRequest().getHeader("Sec-WebSocket-Key");
-                setRequestThreadId(requestId, Thread.currentThread().getId());
-                synchronized (queueLock) {
-                    if(!messageQueueMap.containsKey(Thread.currentThread().getId())) {
-                        messageQueueMap.put(Thread.currentThread().getId(), new LinkedBlockingQueue<>());
-                    }
-                }
+            if (isRPC) {
+                // Drop any stale reply from a previously timed-out RPC so recv() returns
+                // the response to THIS request.
+                messageQueue.clear();
             }
             session.getRemote().sendString(message);
-
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     public String recv() {
-
-        String responce = null;
         try {
-
-            boolean isEmpty = true;
-            while(isEmpty) {
-                synchronized (queueLock) {
-                    isEmpty = messageQueueMap.get(Thread.currentThread().getId()).isEmpty();
-                }
-                Thread.sleep(100);
+            String responce = messageQueue.poll(rpcTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
+            if (responce == null) {
+                LOG.warn("MsgEvent recv() timed out after " + rpcTimeoutSeconds + "s");
             }
-
-            synchronized (queueLock) {
-                responce = messageQueueMap.get(Thread.currentThread().getId()).take();
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
+            return responce;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
         }
-        return responce;
     }
 
     public void start(int timeout) {
@@ -145,25 +107,8 @@ public class MsgEventInterface {
 
         @Override
         public void onMessage(Session sess, String msg) {
-            try {
-
-                long threadId;
-
-                String requestId = sess.getUpgradeRequest().getHeader("Sec-WebSocket-Key");
-                threadId = getRequestThreadId(requestId);
-                removeRequestThreadId(requestId);
-
-                if(threadId == -1) {
-                    System.out.println("NO THREAD ID FOR INCOMING MESSAGE!!!");
-                } else {
-                    synchronized (queueLock) {
-                        messageQueueMap.get(threadId).put(msg);
-                    }
-                }
-
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            // One reply per outstanding RPC on this connection; hand it to recv().
+            messageQueue.offer(msg);
         }
 
         @Override
