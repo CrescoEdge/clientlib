@@ -1,4 +1,16 @@
-# Cresco Platform Client Library
+# Cresco Java Client (clientlib)
+
+Java client library for the **[Cresco](https://github.com/CrescoEdge/agent)** edge-computing framework. It connects
+to the [wsapi](https://github.com/CrescoEdge/wsapi) WebSocket plugin (`wss://host:8282`, authenticated with the
+`cresco_service_key` header) to control agents, deploy plugins, run pipelines, stream the
+data plane, and build stunnel tunnels.
+
+Part of the Cresco framework — see the **[agent repository](https://github.com/CrescoEdge/agent)** for the full
+architecture and the [Python client](https://github.com/CrescoEdge/pycrescolib) for the equivalent in Python.
+
+**Build:** `mvn package` (JDK 21) → shaded `target/clientlib-1.2-SNAPSHOT.jar`.
+
+---
 
 ## What is Cresco?
 

@@ -80,7 +80,6 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
-                System.out.println("DB B");
                 wsInterface.getSession().getRemote().sendBytes(byteBuffer);
             } else {
                 System.out.println("WS not connected!");
