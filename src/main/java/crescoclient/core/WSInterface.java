@@ -14,6 +14,8 @@ import java.net.Socket;
 import java.net.URI;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
 import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -77,10 +79,20 @@ public class WSInterface
 
             //LOG.info("WHAT: " + cert[0].getType() + ' ' + cert[0]);
             X509Certificate sd = (X509Certificate) cert[0];
-            String[] cnName = sd.getIssuerX500Principal().getName().replace("CN=","").split("_");
-            regionName = cnName[0];
-            agentName = cnName[1];
-            pluginName = cnName[2];
+            // Identity is carried in three DN attributes (O=region, OU=agent, CN=plugin) so each
+            // stays within the X.509 64-char limit (previously packed into a single CN split on '_').
+            LdapName dn = new LdapName(sd.getSubjectX500Principal().getName());
+            for (Rdn rdn : dn.getRdns()) {
+                String type = rdn.getType();
+                String value = String.valueOf(rdn.getValue());
+                if ("O".equalsIgnoreCase(type)) {
+                    regionName = value;
+                } else if ("OU".equalsIgnoreCase(type)) {
+                    agentName = value;
+                } else if ("CN".equalsIgnoreCase(type)) {
+                    pluginName = value;
+                }
+            }
 
         } catch (Exception ex) {
             ex.printStackTrace();
