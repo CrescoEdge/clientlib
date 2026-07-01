@@ -8,7 +8,7 @@ data plane, and build stunnel tunnels.
 Part of the Cresco framework — see the **[agent repository](https://github.com/CrescoEdge/agent)** for the full
 architecture and the [Python client](https://github.com/CrescoEdge/pycrescolib) for the equivalent in Python.
 
-**Build:** `mvn package` (JDK 21) → shaded `target/clientlib-1.2-SNAPSHOT.jar`.
+**Build:** `mvn package` (JDK 21) → shaded `target/clientlib-1.3-SNAPSHOT.jar`.
 
 ---
 

@@ -109,7 +109,7 @@ public class TunnelTesting {
 
 
         //Location of latest stunnel
-        String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.2-SNAPSHOT/stunnel-1.2-SNAPSHOT.jar";
+        String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.3-SNAPSHOT/stunnel-1.3-SNAPSHOT.jar";
 
         //Local save file
 
@@ -120,7 +120,7 @@ public class TunnelTesting {
             getPlugin(uri, pluginSavePath);
         }
 
-        //String pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.2-SNAPSHOT.jar";
+        //String pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.3-SNAPSHOT.jar";
 
         //Upload plugin to repo
         Map<String, String> sTunnelMap = client.globalcontroller.upload_plugin_global(pluginSavePath);
@@ -210,7 +210,7 @@ public class TunnelTesting {
 
         /*
         //Location of latest stunnel
-        String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.2-SNAPSHOT/stunnel-1.2-SNAPSHOT.jar";
+        String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.3-SNAPSHOT/stunnel-1.3-SNAPSHOT.jar";
         //String uri = "https://github.com/CrescoEdge/stunnel/releases/download/1.1-SNAPSHOT/stunnel-1.1-SNAPSHOT.jar";
 
         //Local save file
@@ -221,10 +221,10 @@ public class TunnelTesting {
             getPlugin(uri, pluginSavePath);
         }
 
-        //pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.2-SNAPSHOT.jar";
+        //pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.3-SNAPSHOT.jar";
 
          */
-        String pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.2-SNAPSHOT.jar";
+        String pluginSavePath = "/Users/cody/IdeaProjects/stunnel/target/stunnel-1.3-SNAPSHOT.jar";
 
 
         if(clientRegion == null) {
