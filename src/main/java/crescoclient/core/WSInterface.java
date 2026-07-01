@@ -267,14 +267,14 @@ public class WSInterface
             try {
                 org.eclipse.jetty.websocket.core.CoreSession core =
                         ((org.eclipse.jetty.ee10.websocket.jakarta.common.JakartaWebSocketSession) session).getCoreSession();
-                // Send-side buffer: default is 4KB, so a 256KB message is written to the socket in
-                // ~64 tiny TLS writes — that halved the Java client's send rate vs the Python
-                // client. Enlarging the OUTPUT buffer batches the writes. (setOutputBufferSize is
-                // byte-safe; setInputBufferSize is NOT — it corrupts multi-TLS-record reads on
-                // Jetty 12.0.17 — so the input buffer is left at its default.)
+                // Enlarge the websocket core I/O buffers (default 4KB). At 4KB a 256KB message is
+                // read/written in ~64 tiny TLS ops, which throttled both send and receive vs the
+                // Python client. NOTE: requires Jetty >= 12.1 — on 12.0.x setInputBufferSize
+                // corrupted binary messages spanning >1 TLS record; fixed in 12.1.
+                core.setInputBufferSize(256 * 1024);
                 core.setOutputBufferSize(256 * 1024);
             } catch (Exception bex) {
-                LOG.warn("could not tune client output buffer: {}", bex.getMessage());
+                LOG.warn("could not tune client websocket buffers: {}", bex.getMessage());
             }
             if (setIdleTimeout) {
                 session.setMaxIdleTimeout(idleTimeout);

@@ -15,7 +15,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <!-- Match the server (wsapi): Jetty 12 + jakarta.websocket (EE10). -->
-        <jetty.version>12.0.17</jetty.version>
+        <jetty.version>12.1.10</jetty.version>
         <slf4j.version>2.0.6</slf4j.version>
 
     </properties>
