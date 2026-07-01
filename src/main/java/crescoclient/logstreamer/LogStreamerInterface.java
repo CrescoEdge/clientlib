@@ -6,11 +6,10 @@ import com.google.gson.reflect.TypeToken;
 import crescoclient.core.OnMessageCallback;
 import crescoclient.core.WSCallback;
 import crescoclient.core.WSInterface;
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Logger;
-import org.eclipse.jetty.websocket.api.Session;
+import jakarta.websocket.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,7 +19,7 @@ public class LogStreamerInterface {
     private boolean isActive = false;
     private int messageCount = 0;
     private Map<String,String> wsConfig;
-    private final Logger LOG = Log.getLogger(LogStreamerInterface.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LogStreamerInterface.class);
     private WSInterface wsInterface;
 
     private OnMessageCallback onMessageCallback;
@@ -57,12 +56,9 @@ public class LogStreamerInterface {
     public void send(String message) {
 
         try {
-            System.out.println("LOG");
-            System.out.println("LOG getSession()");
-            wsInterface.getSession().getRemote().sendString(message);
-
+            wsInterface.getSession().getBasicRemote().sendText(message);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("send() failed", e);
         }
     }
 
@@ -108,13 +104,13 @@ public class LogStreamerInterface {
                 messageCount += 1;
 
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.error("logstreamer onMessage failed", e);
             }
         }
 
         @Override
         public void onMessage(byte[] b, int offset, int length) {
-            System.out.println("WSLogStreamerCallback onMessage(Bytes[] b) unimplemented");
+            LOG.debug("WSLogStreamerCallback onMessage(byte[]) unimplemented");
         }
 
         @Override
@@ -126,12 +122,13 @@ public class LogStreamerInterface {
     class LogPrinter implements OnMessageCallback {
         @Override
         public void onMessage(String msg) {
+            // Default sink for streamed log lines: this is user-facing output, not diagnostics.
             System.out.println(msg);
         }
 
         @Override
         public void onMessage(byte[] b, int offset, int length) {
-            System.out.println("LogStreamerInterface LogPrinter onMessage(Bytes[] b) unimplemented");
+            LOG.debug("LogStreamerInterface LogPrinter onMessage(byte[]) unimplemented");
         }
     }
 

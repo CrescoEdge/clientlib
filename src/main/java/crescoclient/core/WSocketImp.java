@@ -1,59 +1,64 @@
 package crescoclient.core;
 
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Logger;
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.annotations.*;
+import jakarta.websocket.CloseReason;
+import jakarta.websocket.Endpoint;
+import jakarta.websocket.EndpointConfig;
+import jakarta.websocket.MessageHandler;
+import jakarta.websocket.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@WebSocket
-public class WSocketImp
+import java.nio.ByteBuffer;
+
+/**
+ * Programmatic jakarta.websocket client endpoint. Registers whole-message handlers for
+ * text and binary frames on open and dispatches everything to the supplied {@link WSCallback}.
+ */
+public class WSocketImp extends Endpoint
 {
+    private static final Logger LOG = LoggerFactory.getLogger(WSocketImp.class);
+    private final WSCallback wSStatusCallback;
 
-    private final Logger LOG = Log.getLogger(WSocketImp.class);
-    private WSCallback wSStatusCallback;
     public WSocketImp(WSCallback wSStatusCallback) {
         this.wSStatusCallback = wSStatusCallback;
     }
 
-    @OnWebSocketConnect
-    public void onConnect(Session sess)
-    {
-        LOG.debug("onConnect({})", sess);
-        wSStatusCallback.onConnect(sess);
+    @Override
+    public void onOpen(final Session session, EndpointConfig config) {
+        LOG.debug("onOpen({})", session.getId());
+
+        session.addMessageHandler(String.class, new MessageHandler.Whole<String>() {
+            @Override
+            public void onMessage(String msg) {
+                LOG.debug("onMessage(text)");
+                wSStatusCallback.onMessage(session, msg);
+            }
+        });
+
+        session.addMessageHandler(ByteBuffer.class, new MessageHandler.Whole<ByteBuffer>() {
+            @Override
+            public void onMessage(ByteBuffer buffer) {
+                LOG.debug("onMessage(bytes)");
+                byte[] b = new byte[buffer.remaining()];
+                buffer.get(b);
+                wSStatusCallback.onMessage(b, 0, b.length);
+            }
+        });
+
+        wSStatusCallback.onConnect(session);
     }
 
-    @OnWebSocketClose
-    public void onClose(int statusCode, String reason)
-    {
-        LOG.debug("onClose({}, {})", statusCode, reason);
-        wSStatusCallback.onClose(statusCode, reason);
+    @Override
+    public void onClose(Session session, CloseReason closeReason) {
+        int code = closeReason.getCloseCode().getCode();
+        String reason = closeReason.getReasonPhrase();
+        LOG.debug("onClose({}, {})", code, reason);
+        wSStatusCallback.onClose(code, reason);
     }
 
-    @OnWebSocketError
-    public void onError(Throwable cause)
-    {
-        if(cause instanceof org.eclipse.jetty.websocket.api.CloseException) {
-            LOG.debug(cause);
-        } else {
-            LOG.warn(cause);
-            wSStatusCallback.onError(cause);
-        }
+    @Override
+    public void onError(Session session, Throwable cause) {
+        LOG.warn("onError: {}", cause == null ? "null" : cause.getMessage());
+        wSStatusCallback.onError(cause);
     }
-
-    @OnWebSocketMessage
-    public void onMessage(Session sess, String msg) {
-
-        LOG.debug("onMessage({})", msg);
-        wSStatusCallback.onMessage(sess, msg);
-
-    }
-
-    @OnWebSocketMessage
-    public void onMessage(byte[] b, int offset, int length) {
-        LOG.debug("onMessage() Bytes");
-        wSStatusCallback.onMessage(b, offset, length);
-    }
-
-
-
 }

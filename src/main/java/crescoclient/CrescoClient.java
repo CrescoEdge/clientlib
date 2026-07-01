@@ -5,7 +5,6 @@ import crescoclient.core.*;
 import crescoclient.dataplane.DataPlaneInterface;
 import crescoclient.logstreamer.LogStreamerInterface;
 import crescoclient.msgevent.MsgEventInterface;
-import org.eclipse.jetty.util.log.Log;
 
 public class CrescoClient {
 
@@ -30,11 +29,8 @@ public class CrescoClient {
      */
     public CrescoClient(String host, int port, String service_key) {
 
-        //This is needed to suppress Jetty logging
-        Log.getProperties().setProperty("org.eclipse.jetty.util.log.announce", "false");
-        System.setProperty("org.eclipse.jetty.util.log.class", "org.eclipse.jetty.util.log.StdErrLog");
-        System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
-        //System.setProperty("oejusS.config.LEVEL", "OFF");
+        // Jetty 12 logs via SLF4J; with the slf4j-jdk14 binding, keep Jetty quiet through JUL.
+        java.util.logging.Logger.getLogger("org.eclipse.jetty").setLevel(java.util.logging.Level.WARNING);
 
         this.host = host;
         this.port = port;

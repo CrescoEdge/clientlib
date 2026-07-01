@@ -2,20 +2,18 @@ package crescoclient.msgevent;
 
 import crescoclient.core.WSCallback;
 import crescoclient.core.WSInterface;
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Logger;
-import org.eclipse.jetty.websocket.api.Session;
+import jakarta.websocket.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MsgEventInterface {
 
     private Map<String,String> wsConfig;
-    private final Logger LOG = Log.getLogger(MsgEventInterface.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MsgEventInterface.class);
     private WSInterface wsInterface;
 
     // The wsapi protocol replies with exactly one response per request and carries no
@@ -57,9 +55,9 @@ public class MsgEventInterface {
                 // the response to THIS request.
                 messageQueue.clear();
             }
-            session.getRemote().sendString(message);
+            session.getBasicRemote().sendText(message);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("send() failed", e);
         }
     }
 
@@ -113,7 +111,7 @@ public class MsgEventInterface {
 
         @Override
         public void onMessage(byte[] b, int offset, int length) {
-            System.out.println("MsgEventInterface WSMsgEventCallback onMessage(Bytes[] b) unimplemented");
+            LOG.debug("MsgEventInterface WSMsgEventCallback onMessage(byte[]) unimplemented");
         }
 
     }

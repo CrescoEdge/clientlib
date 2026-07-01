@@ -1,6 +1,6 @@
 package crescoclient.core;
 
-import org.eclipse.jetty.websocket.api.Session;
+import jakarta.websocket.Session;
 
 
 public interface WSCallback {

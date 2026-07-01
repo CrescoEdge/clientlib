@@ -1,14 +1,16 @@
 package crescoclient.core;
 
+import jakarta.websocket.ClientEndpointConfig;
+import jakarta.websocket.Session;
+import jakarta.websocket.WebSocketContainer;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
+import org.eclipse.jetty.ee10.websocket.jakarta.client.JakartaWebSocketClientContainerProvider;
+import org.eclipse.jetty.io.ClientConnector;
 import org.eclipse.jetty.util.component.LifeCycle;
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
-import org.eclipse.jetty.websocket.client.WebSocketClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.Socket;
 import java.net.URI;
@@ -17,36 +19,42 @@ import java.security.cert.X509Certificate;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 import java.util.*;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@WebSocket
+/**
+ * WebSocket transport for the Cresco client, on Jetty 12 + jakarta.websocket (EE10) so it
+ * matches the wsapi server. A trust-all Jetty {@link HttpClient} backs a jakarta
+ * {@link WebSocketContainer}; identity (region/agent/plugin) is read from the negotiated
+ * TLS peer certificate. All lifecycle is stopped in {@link #close()} so the JVM can exit.
+ */
 public class WSInterface
 {
-    //private boolean isActive = false;
-    private AtomicBoolean isActive = new AtomicBoolean(false);
-    private AtomicBoolean sessionLock = new AtomicBoolean();
+    private static final int MAX_MSG_BYTES = 32 * 1024 * 1024;
+
+    private final AtomicBoolean isActive = new AtomicBoolean(false);
+    private final AtomicBoolean sessionLock = new AtomicBoolean();
     private String regionName;
     private String agentName;
     private String pluginName;
-    private AtomicBoolean isReconnect = new AtomicBoolean(true);
-    private AtomicBoolean inConnect = new AtomicBoolean(false);
-    private final Logger LOG = Log.getLogger(WSInterface.class);
+    private final AtomicBoolean isReconnect = new AtomicBoolean(true);
+    private final AtomicBoolean inConnect = new AtomicBoolean(false);
+    private static final Logger LOG = LoggerFactory.getLogger(WSInterface.class);
+
     private HttpClient http;
-    private WebSocketClient client;
-    //private Session session;
-    Map<Long, Session> sessionMap;
-    private Map<String,String> wsConfig;
+    private SslContextFactory.Client ssl;
+    private WebSocketContainer container;
+    private final ClientEndpointConfig endpointConfig;
 
-    private WSCallback wsCallback;
+    private final Map<Long, Session> sessionMap;
+    private final Map<String,String> wsConfig;
+    private final WSCallback wsCallback;
 
-    private  int connectionTimeout;
+    private int connectionTimeout;
+    private final long idleTimeout = 30L * 1000L;
+    private final String url;
 
-    private final int idleTimeout = 30 * 1000;
-
-    private String url;
-
-    private ClientUpgradeRequest request;
+    // Kept so close() can cancel it -- otherwise a non-daemon Timer keeps the JVM alive.
+    private Timer sessionCleanupTimer;
 
     public WSInterface(Map<String,String> wsConfig, WSCallback wsCallback) {
         this.wsConfig = wsConfig;
@@ -54,9 +62,16 @@ public class WSInterface
         this.sessionMap = Collections.synchronizedMap(new HashMap<>());
         this.url = "wss://" + wsConfig.get("host") + ":" + wsConfig.get("port") + wsConfig.get("api_path");
 
-        this.request = new ClientUpgradeRequest();
-        this.request.addExtensions("permessage-deflate");
-        this.request.setHeader("cresco_service_key", wsConfig.get("service_key"));
+        // The wsapi upgrade is authenticated by a request header; carry it on every session.
+        final String serviceKey = wsConfig.get("service_key");
+        this.endpointConfig = ClientEndpointConfig.Builder.create()
+                .configurator(new ClientEndpointConfig.Configurator() {
+                    @Override
+                    public void beforeRequest(Map<String, List<String>> headers) {
+                        headers.put("cresco_service_key", Collections.singletonList(serviceKey));
+                    }
+                })
+                .build();
 
         //clean up sessions
         sessionCleanup();
@@ -71,16 +86,15 @@ public class WSInterface
     public String getPluginName() {
         return pluginName;
     }
-    private void setAgentInfo(HttpClient http) {
 
+    // Identity is carried in three DN attributes (O=region, OU=agent, CN=plugin) so each
+    // stays within the X.509 64-char limit. Read from the negotiated TLS peer certificate.
+    private void setAgentInfo() {
         try {
-            byte[] s = http.getSslContextFactory().getSslContext().getClientSessionContext().getIds().nextElement();
-            Certificate[] cert = http.getSslContextFactory().getSslContext().getClientSessionContext().getSession(s).getPeerCertificates();
+            byte[] s = ssl.getSslContext().getClientSessionContext().getIds().nextElement();
+            Certificate[] cert = ssl.getSslContext().getClientSessionContext().getSession(s).getPeerCertificates();
 
-            //LOG.info("WHAT: " + cert[0].getType() + ' ' + cert[0]);
             X509Certificate sd = (X509Certificate) cert[0];
-            // Identity is carried in three DN attributes (O=region, OU=agent, CN=plugin) so each
-            // stays within the X.509 64-char limit (previously packed into a single CN split on '_').
             LdapName dn = new LdapName(sd.getSubjectX500Principal().getName());
             for (Rdn rdn : dn.getRdns()) {
                 String type = rdn.getType();
@@ -93,88 +107,69 @@ public class WSInterface
                     pluginName = value;
                 }
             }
-
         } catch (Exception ex) {
-            ex.printStackTrace();
+            LOG.warn("setAgentInfo() could not read TLS identity", ex);
         }
     }
 
     public boolean serverListening(String host, int port)
     {
         Socket s = null;
-        try
-        {
+        try {
             s = new Socket(host, port);
             return true;
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-            //return false;
+        } catch (Exception e) {
+            LOG.debug("serverListening({}:{}) probe: {}", host, port, e.getMessage());
             return true;
-        }
-        finally
-        {
-            if(s != null)
-                try {s.close();}
-                catch(Exception e){}
+        } finally {
+            if (s != null) {
+                try { s.close(); } catch (Exception ignore) { }
+            }
         }
     }
 
     public boolean connect() {
 
-        //System.out.println("THIS FIRST");
-
         boolean isConnected = false;
 
-        if(!inConnect.get()) {
+        if (!inConnect.get()) {
             inConnect.set(true);
             if (wsConfig != null) {
-
-                if (wsConfig.containsKey("host") && wsConfig.containsKey("port") && wsConfig.containsKey("service_key") && wsConfig.containsKey("api_path")) {
+                if (wsConfig.containsKey("host") && wsConfig.containsKey("port")
+                        && wsConfig.containsKey("service_key") && wsConfig.containsKey("api_path")) {
 
                     if (serverListening(wsConfig.get("host"), Integer.parseInt(wsConfig.get("port")))) {
 
-                        SslContextFactory ssl = new SslContextFactory.Client();
-                        ssl.setTrustAll(true);
-                        ssl.setValidateCerts(false);
-                        ssl.setValidatePeerCerts(false);
-                        ssl.setEndpointIdentificationAlgorithm(null);
-                        //ssl.setIncludeProtocols("TLSv1.2", "TLSv1.3");
-                        //ssl.setEndpointIdentificationAlgorithm("HTTPS");
-                        http = new HttpClient(ssl);
-                        //http = new HttpClient();
-                        client = new WebSocketClient(http);
-                        //no idle timeout
-                        client.getPolicy().setIdleTimeout(0);
-
-                        //set buffers
-                        client.getPolicy().setMaxTextMessageSize(1024 * 1024 * 32);
-                        client.getPolicy().setMaxTextMessageBufferSize(1024 * 1024 * 128);
-                        client.getPolicy().setMaxBinaryMessageSize(1024 * 1024 * 32);
-                        client.getPolicy().setMaxBinaryMessageBufferSize(1024 * 1024 * 128);
-
                         try {
+                            ssl = new SslContextFactory.Client();
+                            ssl.setTrustAll(true);
+                            ssl.setEndpointIdentificationAlgorithm(null);
 
-                            http.start();
-                            client.start();
+                            ClientConnector connector = new ClientConnector();
+                            connector.setSslContextFactory(ssl);
+                            http = new HttpClient(new HttpClientTransportDynamic(connector));
+
+                            container = JakartaWebSocketClientContainerProvider.getContainer(http);
+                            if (container instanceof LifeCycle && !((LifeCycle) container).isStarted()) {
+                                ((LifeCycle) container).start();
+                            }
+                            container.setDefaultMaxTextMessageBufferSize(MAX_MSG_BYTES);
+                            container.setDefaultMaxBinaryMessageBufferSize(MAX_MSG_BYTES);
+                            container.setDefaultMaxSessionIdleTimeout(0);
 
                             //get an initial session in order to get the agent info
                             getSession(false);
-                            setAgentInfo(http);
+                            setAgentInfo();
                             isActive.set(true);
 
                         } catch (Throwable t) {
-                            System.out.println("WHAT TYPE ERROR: " + t.getMessage());
-                            LOG.warn(t);
-                        } finally {
-                            //stop(http);
-                            //stop(client);
+                            inConnect.set(false);
+                            LOG.warn("connect() failed for {}: {}", url, t.getMessage());
                         }
-                        //System.out.println("DID YOU FINISHED");
                     } else {
                         inConnect.set(false);
-                        LOG.warn("connect(): Remote server is not listening at host:" + wsConfig.get("host") + " port:" + wsConfig.get("port"));
+                        LOG.warn("connect(): remote server not listening at host:{} port:{}",
+                                wsConfig.get("host"), wsConfig.get("port"));
                     }
                 } else {
                     inConnect.set(false);
@@ -193,27 +188,25 @@ public class WSInterface
 
         this.connectionTimeout = timeout;
 
-        new Thread(){
+        new Thread() {
             public void run() {
                 try {
-
                     //clear out previous
                     clearWS();
-                    //System.out.println("start()");
+                    isReconnect.set(true);
                     while ((isReconnect.get()) && (!isActive.get())) {
                         try {
                             connect();
                             Thread.sleep(1000);
                         } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
+                            Thread.currentThread().interrupt();
+                            return;
                         }
                     }
-
                 } catch (Exception ex) {
-                    //do nothing
+                    LOG.debug("start() reconnect loop ended: {}", ex.getMessage());
                 }
             }
-
         }.start();
 
     }
@@ -231,22 +224,18 @@ public class WSInterface
     }
 
     public boolean connected() {
-        boolean isConencted = false;
-        if(getIsActive()) {
-            if(client.getState().equals("STARTED")) {
-                isConencted = true;
-            }
-        }
-        return isConencted;
-
+        return getIsActive()
+                && container != null
+                && (!(container instanceof LifeCycle) || ((LifeCycle) container).isStarted());
     }
+
     public boolean SessionConnected() {
         boolean isConnected = false;
-        if(getIsActive()) {
+        if (getIsActive()) {
             synchronized (sessionLock) {
-                if(sessionMap.containsKey(Thread.currentThread().getId())) {
+                if (sessionMap.containsKey(Thread.currentThread().getId())) {
                     isConnected = sessionMap.get(Thread.currentThread().getId()).isOpen();
-                    if(!isConnected) {
+                    if (!isConnected) {
                         sessionMap.remove(Thread.currentThread().getId());
                     }
                 }
@@ -259,63 +248,87 @@ public class WSInterface
         Session session = null;
         try {
             WSocketImp socket = new WSocketImp(new WSPassThroughCallback());
-            //System.out.println("url: " + url);
-            //System.out.println("request: " + request);
-            //System.out.println(client);
-            //System.out.println(URI.create(url));
-            Future<Session> fut = client.connect(socket, URI.create(url), request);
-            session = fut.get();
-            if(setIdleTimeout) {
-                session.setIdleTimeout(idleTimeout);
+            session = container.connectToServer(socket, endpointConfig, URI.create(url));
+            session.setMaxTextMessageBufferSize(MAX_MSG_BYTES);
+            session.setMaxBinaryMessageBufferSize(MAX_MSG_BYTES);
+            if (setIdleTimeout) {
+                session.setMaxIdleTimeout(idleTimeout);
+            } else {
+                session.setMaxIdleTimeout(0);
             }
-            //if(regionName == null) {
-            //    setAgentInfo(http);
-            //}
-            //System.out.println("CREATE SESSIONS Thread: " + Thread.currentThread().getId());
         } catch (Exception ex) {
-            System.out.println("createSession() Error: " + ex.getMessage());
-            ex.printStackTrace();
+            LOG.error("createSession() failed for {}", url, ex);
         }
         return session;
     }
+
     public Session getSession() {
         return getSession(false);
     }
+
     public Session getSession(boolean isTemp) {
         Session session;
         boolean sessionExists = false;
         synchronized (sessionLock) {
-            if(sessionMap.containsKey(Thread.currentThread().getId())) {
+            if (sessionMap.containsKey(Thread.currentThread().getId())) {
                 sessionExists = SessionConnected();
             }
         }
-        if(sessionExists) {
-            //System.out.println("session exists");
+        if (sessionExists) {
             session = sessionMap.get(Thread.currentThread().getId());
         } else {
-            //System.out.println("session create");
             session = createSession(isTemp);
             synchronized (sessionLock) {
                 sessionMap.put(Thread.currentThread().getId(), session);
             }
         }
-
         return session;
     }
-    
+
     public void close() {
         isReconnect.set(false);
+        if (sessionCleanupTimer != null) {
+            sessionCleanupTimer.cancel();
+            sessionCleanupTimer = null;
+        }
         clearWS();
     }
 
     private void clearWS() {
 
         isActive.set(false);
-        if(client != null) {
-            stopLC(client);
+
+        // Close any open sessions first.
+        List<Session> open;
+        synchronized (sessionLock) {
+            open = new ArrayList<>(sessionMap.values());
+            sessionMap.clear();
         }
-        if(http != null) {
-            stopLC(http);
+        for (Session s : open) {
+            try {
+                if (s != null && s.isOpen()) s.close();
+            } catch (Exception e) {
+                LOG.debug("session close: {}", e.getMessage());
+            }
+        }
+
+        // Stopping the jakarta container also stops the HttpClient it manages -- this
+        // releases the Jetty selector/scheduler threads so the JVM is free to exit.
+        if (container != null) {
+            try {
+                JakartaWebSocketClientContainerProvider.stop(container);
+            } catch (Exception e) {
+                LOG.debug("container stop: {}", e.getMessage());
+            }
+            container = null;
+        }
+        if (http != null) {
+            try {
+                http.stop();
+            } catch (Exception e) {
+                LOG.debug("http stop: {}", e.getMessage());
+            }
+            http = null;
         }
     }
 
@@ -336,61 +349,39 @@ public class WSInterface
     private void sessionCleanup() {
 
         try {
-
-            //setup performance timer
-            Timer timer = new Timer();
+            // Daemon timer: must never keep the JVM alive after close().
+            sessionCleanupTimer = new Timer("cresco-ws-session-cleanup", true);
 
             TimerTask task = new TimerTask() {
                 @Override
                 public void run() {
                     try {
                         int sessionCount = getSessionCount();
-                        if(sessionCount > 0) {
-
-                            //System.out.println("thread: " + Thread.currentThread().getId() + " session count: " + sessionCount);
+                        if (sessionCount > 0) {
                             List<Long> sessionList = getSessionList();
-                            int count = 1;
                             for (Long sessionId : sessionList) {
                                 boolean isOpen;
                                 synchronized (sessionLock) {
-                                    isOpen = sessionMap.get(sessionId).isOpen();
+                                    Session s = sessionMap.get(sessionId);
+                                    isOpen = s != null && s.isOpen();
                                 }
-                                //System.out.println("thread: " + Thread.currentThread().getId() + " " + count  + " of " + sessionList.size()  +" sessionId: " + sessionId + " is open " + isOpen);
-                                count++;
                                 if (!isOpen) {
                                     synchronized (sessionLock) {
                                         sessionMap.remove(sessionId);
                                     }
                                 }
                             }
-                            //System.out.println("-");
                         }
-
                     } catch (Exception ex) {
-                        ex.printStackTrace();
+                        LOG.debug("session cleanup tick: {}", ex.getMessage());
                     }
-
                 }
             };
 
-            // Schedule the timer task to run every second
-            timer.schedule(task, 0, 30 * 1000);
+            // run every 30s
+            sessionCleanupTimer.schedule(task, 0, 30 * 1000);
         } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-
-    }
-
-
-    private void stopLC(LifeCycle lifeCycle) {
-        try
-        {
-            lifeCycle.stop();
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
+            LOG.warn("sessionCleanup() init failed", ex);
         }
     }
 
@@ -419,17 +410,7 @@ public class WSInterface
 
         @Override
         public void onClose(int statusCode, String reason) {
-            wsCallback.onClose(statusCode,reason);
-            /*
-            if(isReconnect.get()) {
-                if(isActive.get()) {
-                    isActive.set(false);
-                    System.out.println("1");
-                    start(connectionTimeout);
-                }
-            }
-            */
-
+            wsCallback.onClose(statusCode, reason);
         }
     }
 }

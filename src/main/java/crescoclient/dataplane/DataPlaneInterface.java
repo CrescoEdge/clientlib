@@ -5,9 +5,9 @@ import com.google.gson.reflect.TypeToken;
 import crescoclient.core.OnMessageCallback;
 import crescoclient.core.WSCallback;
 import crescoclient.core.WSInterface;
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Logger;
-import org.eclipse.jetty.websocket.api.Session;
+import jakarta.websocket.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -20,7 +20,7 @@ public class DataPlaneInterface {
     private boolean isActive = false;
     private int messageCount = 0;
     private Map<String,String> wsConfig;
-    private final Logger LOG = Log.getLogger(DataPlaneInterface.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DataPlaneInterface.class);
     private WSInterface wsInterface;
 
     private OnMessageCallback onMessageCallback;
@@ -53,7 +53,7 @@ public class DataPlaneInterface {
         wsConfig.put("api_path","/api/dataplane");
         wsConfig.put("stream_query", streamQuery);
 
-        System.out.println("DataPlaneInterface query: " + streamQuery);
+        LOG.debug("DataPlaneInterface query: {}", streamQuery);
 
         this.onMessageCallback = onMessageCallback;
         wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
@@ -65,14 +65,12 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
-                //System.out.println("DP Send text getSession()");
-                wsInterface.getSession().getRemote().sendString(message);
-
+                wsInterface.getSession().getBasicRemote().sendText(message);
             } else {
-                System.out.println("WS not connected!");
+                LOG.warn("send(text): WS not connected");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("send(text) failed", e);
         }
     }
 
@@ -80,12 +78,12 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
-                wsInterface.getSession().getRemote().sendBytes(byteBuffer);
+                wsInterface.getSession().getBasicRemote().sendBinary(byteBuffer);
             } else {
-                System.out.println("WS not connected!");
+                LOG.warn("send(bytes): WS not connected");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("send(bytes) failed", e);
         }
     }
 
@@ -93,13 +91,12 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
-                System.out.println("sendPartial(ByteBuffer byteBuffer, boolean complete) support not implemented on wsapi");
-                wsInterface.getSession().getRemote().sendPartialBytes(byteBuffer, complete);
+                wsInterface.getSession().getBasicRemote().sendBinary(byteBuffer, complete);
             } else {
-                System.out.println("WS not connected!");
+                LOG.warn("sendPartial(bytes): WS not connected");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("sendPartial(bytes) failed", e);
         }
     }
 
@@ -124,8 +121,8 @@ public class DataPlaneInterface {
         @Override
         public void onConnect(Session sess) {
             try {
-                System.out.println("WSLogStreamerCallback query: " + wsConfig.get("stream_query"));
-                sess.getRemote().sendString(wsConfig.get("stream_query"));
+                LOG.debug("WSLogStreamerCallback query: {}", wsConfig.get("stream_query"));
+                sess.getBasicRemote().sendText(wsConfig.get("stream_query"));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -150,7 +147,7 @@ public class DataPlaneInterface {
                 messageCount += 1;
 
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.error("dataplane onMessage failed", e);
             }
         }
 
