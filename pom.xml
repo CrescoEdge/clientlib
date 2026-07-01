@@ -74,13 +74,6 @@
         </repository>
 
                 <repository>
-                    <id>snapshots-repo</id>
-                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-                    <releases><enabled>false</enabled></releases>
-                    <snapshots><enabled>true</enabled></snapshots>
-                </repository>
-
-                <repository>
                     <id>wso2-maven2-repository</id>
                     <name>WSO2 Maven2 Repository</name>
                     <url>https://dist.wso2.org/maven2</url>
