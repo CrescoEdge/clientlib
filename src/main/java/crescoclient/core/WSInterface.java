@@ -147,11 +147,24 @@ public class WSInterface
 
                             ClientConnector connector = new ClientConnector();
                             connector.setSslContextFactory(ssl);
+                            // Enlarge the TCP socket buffers (SO_RCVBUF/SO_SNDBUF). The small
+                            // default throttles bulk dataplane transfer via TCP flow control.
+                            connector.setReceiveBufferSize(4 * 1024 * 1024);
+                            connector.setSendBufferSize(4 * 1024 * 1024);
                             http = new HttpClient(new HttpClientTransportDynamic(connector));
 
                             container = JakartaWebSocketClientContainerProvider.getContainer(http);
                             if (container instanceof LifeCycle && !((LifeCycle) container).isStarted()) {
                                 ((LifeCycle) container).start();
+                            }
+                            // Don't request permessage-deflate: binary dataplane payloads don't
+                            // compress and per-message deflate is a heavy CPU cost that caps
+                            // throughput. (The server also disables it.)
+                            try {
+                                ((org.eclipse.jetty.ee10.websocket.jakarta.common.JakartaWebSocketContainer) container)
+                                        .getWebSocketComponents().getExtensionRegistry().unregister("permessage-deflate");
+                            } catch (Exception dex) {
+                                LOG.warn("could not disable client permessage-deflate: {}", dex.getMessage());
                             }
                             container.setDefaultMaxTextMessageBufferSize(MAX_MSG_BYTES);
                             container.setDefaultMaxBinaryMessageBufferSize(MAX_MSG_BYTES);
@@ -251,6 +264,18 @@ public class WSInterface
             session = container.connectToServer(socket, endpointConfig, URI.create(url));
             session.setMaxTextMessageBufferSize(MAX_MSG_BYTES);
             session.setMaxBinaryMessageBufferSize(MAX_MSG_BYTES);
+            try {
+                org.eclipse.jetty.websocket.core.CoreSession core =
+                        ((org.eclipse.jetty.ee10.websocket.jakarta.common.JakartaWebSocketSession) session).getCoreSession();
+                // Send-side buffer: default is 4KB, so a 256KB message is written to the socket in
+                // ~64 tiny TLS writes — that halved the Java client's send rate vs the Python
+                // client. Enlarging the OUTPUT buffer batches the writes. (setOutputBufferSize is
+                // byte-safe; setInputBufferSize is NOT — it corrupts multi-TLS-record reads on
+                // Jetty 12.0.17 — so the input buffer is left at its default.)
+                core.setOutputBufferSize(256 * 1024);
+            } catch (Exception bex) {
+                LOG.warn("could not tune client output buffer: {}", bex.getMessage());
+            }
             if (setIdleTimeout) {
                 session.setMaxIdleTimeout(idleTimeout);
             } else {

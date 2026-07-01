@@ -78,6 +78,10 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
+                // Blocking send paces the sender to the consumer's drain rate (same throughput as
+                // async, but bounded latency instead of an unbounded outgoing queue). The send
+                // speed comes from the enlarged client OUTPUT buffer (see WSInterface), not from
+                // firing async.
                 wsInterface.getSession().getBasicRemote().sendBinary(byteBuffer);
             } else {
                 LOG.warn("send(bytes): WS not connected");

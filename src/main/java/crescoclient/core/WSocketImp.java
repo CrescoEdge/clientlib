@@ -58,7 +58,28 @@ public class WSocketImp extends Endpoint
 
     @Override
     public void onError(Session session, Throwable cause) {
-        LOG.warn("onError: {}", cause == null ? "null" : cause.getMessage());
+        // Jetty 12 surfaces benign teardown here (null cause, or EOF/closed-channel when the peer
+        // closes first) — those are normal close, not faults, so log at debug instead of spamming
+        // WARN with a useless "onError: null". Real errors are logged at WARN with the type.
+        if (cause == null || isBenignClose(cause)) {
+            LOG.debug("onError during close: {}", cause);
+        } else {
+            LOG.warn("onError: {}", cause.toString(), cause);
+        }
         wSStatusCallback.onError(cause);
+    }
+
+    private static boolean isBenignClose(Throwable cause) {
+        for (Throwable t = cause; t != null; t = t.getCause()) {
+            if (t instanceof java.io.EOFException || t instanceof java.nio.channels.ClosedChannelException) {
+                return true;
+            }
+            String n = t.getClass().getName();
+            if (n.equals("org.eclipse.jetty.io.EofException")
+                    || (n.startsWith("org.eclipse.jetty.websocket") && n.contains("Close"))) {
+                return true;
+            }
+        }
+        return false;
     }
 }
