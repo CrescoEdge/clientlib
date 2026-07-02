@@ -267,12 +267,15 @@ public class WSInterface
             try {
                 org.eclipse.jetty.websocket.core.CoreSession core =
                         ((org.eclipse.jetty.ee10.websocket.jakarta.common.JakartaWebSocketSession) session).getCoreSession();
-                // Enlarge the websocket core I/O buffers (default 4KB). At 4KB a 256KB message is
-                // read/written in ~64 tiny TLS ops, which throttled both send and receive vs the
-                // Python client. NOTE: requires Jetty >= 12.1 — on 12.0.x setInputBufferSize
+                // WebSocket core I/O buffer size. NOT hardcoded: default 64KB, override via the
+                // "cresco.client.io_buffer_bytes" system property. BIG is bad over TLS (wss): a
+                // large WS buffer misaligns with the 16KB TLS record boundary and collapses
+                // throughput (isolated Jetty drain, 256KB binary: 765 MB/s at 64KB vs 480 at 256KB
+                // vs 139 at 1MB). NOTE: requires Jetty >= 12.1 — on 12.0.x setInputBufferSize
                 // corrupted binary messages spanning >1 TLS record; fixed in 12.1.
-                core.setInputBufferSize(256 * 1024);
-                core.setOutputBufferSize(256 * 1024);
+                int ioBuf = Integer.getInteger("cresco.client.io_buffer_bytes", 64 * 1024);
+                core.setInputBufferSize(ioBuf);
+                core.setOutputBufferSize(ioBuf);
             } catch (Exception bex) {
                 LOG.warn("could not tune client websocket buffers: {}", bex.getMessage());
             }
