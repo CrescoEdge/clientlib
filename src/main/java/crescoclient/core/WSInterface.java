@@ -17,9 +17,11 @@ import io.netty.handler.codec.http.websocketx.WebSocketClientProtocolConfig;
 import io.netty.handler.codec.http.websocketx.WebSocketClientProtocolHandler;
 import io.netty.handler.codec.http.websocketx.WebSocketFrameAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
+import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,7 +109,17 @@ public class WSInterface {
             if (wsConfig != null && host != null && apiPath != null && serviceKey != null) {
                 try {
                     if (group == null) {
+                        // TLS provider: default JDK (SSLEngine). -Dcresco.client.ssl_provider=OPENSSL
+                        // uses native BoringSSL (netty-tcnative) -- the client's JDK crypto is the
+                        // slowest TLS path in the fabric. Falls back to JDK if the native lib is absent.
+                        SslProvider provider = SslProvider.JDK;
+                        if ("OPENSSL".equalsIgnoreCase(System.getProperty("cresco.client.ssl_provider", "JDK"))
+                                && OpenSsl.isAvailable()) {
+                            provider = SslProvider.OPENSSL;
+                            LOG.info("Cresco client TLS provider: OPENSSL (native BoringSSL)");
+                        }
                         sslContext = SslContextBuilder.forClient()
+                                .sslProvider(provider)
                                 .trustManager(InsecureTrustManagerFactory.INSTANCE)
                                 .protocols("TLSv1.3", "TLSv1.2")
                                 .build();
