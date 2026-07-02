@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
-import java.net.Socket;
 import java.net.URI;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -100,13 +99,6 @@ public class WSInterface {
         } catch (Exception ex) {
             LOG.warn("setAgentInfo() could not read TLS identity", ex);
         }
-    }
-
-    public boolean serverListening(String host, int port) {
-        Socket s = null;
-        try { s = new Socket(host, port); return true; }
-        catch (Exception e) { LOG.debug("serverListening probe: {}", e.getMessage()); return true; }
-        finally { if (s != null) try { s.close(); } catch (Exception ignore) {} }
     }
 
     public boolean connect() {
