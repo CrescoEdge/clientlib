@@ -1,16 +1,13 @@
 package crescoclient.core;
 
-import jakarta.websocket.Session;
-
-
 public interface WSCallback {
 
-    void onConnect(Session sess);
+    void onConnect(WsConn sess);
     void onClose(int statusCode, String reason);
 
     void onError(Throwable cause);
 
-    void onMessage(Session sess, String msg);
+    void onMessage(WsConn sess, String msg);
 
     void onMessage(byte[] b, int offset, int length);
 

@@ -2,7 +2,7 @@ package crescoclient.msgevent;
 
 import crescoclient.core.WSCallback;
 import crescoclient.core.WSInterface;
-import jakarta.websocket.Session;
+import crescoclient.core.WsConn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,13 +49,13 @@ public class MsgEventInterface {
     public void send(boolean isRPC, String message) {
 
         try {
-            Session session = wsInterface.getSession(true);
+            WsConn session = wsInterface.getSession(true);
             if (isRPC) {
                 // Drop any stale reply from a previously timed-out RPC so recv() returns
                 // the response to THIS request.
                 messageQueue.clear();
             }
-            session.getBasicRemote().sendText(message);
+            session.sendText(message);
         } catch (Exception e) {
             LOG.error("send() failed", e);
         }
@@ -89,7 +89,7 @@ public class MsgEventInterface {
 
     class WSMsgEventCallback implements WSCallback {
         @Override
-        public void onConnect(Session sess) {
+        public void onConnect(WsConn sess) {
 
         }
 
@@ -104,7 +104,7 @@ public class MsgEventInterface {
         }
 
         @Override
-        public void onMessage(Session sess, String msg) {
+        public void onMessage(WsConn sess, String msg) {
             // One reply per outstanding RPC on this connection; hand it to recv().
             messageQueue.offer(msg);
         }

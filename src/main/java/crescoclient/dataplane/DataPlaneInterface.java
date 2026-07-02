@@ -5,7 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import crescoclient.core.OnMessageCallback;
 import crescoclient.core.WSCallback;
 import crescoclient.core.WSInterface;
-import jakarta.websocket.Session;
+import crescoclient.core.WsConn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +65,7 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
-                wsInterface.getSession().getBasicRemote().sendText(message);
+                wsInterface.getSession().sendText(message);
             } else {
                 LOG.warn("send(text): WS not connected");
             }
@@ -82,7 +82,7 @@ public class DataPlaneInterface {
                 // async, but bounded latency instead of an unbounded outgoing queue). The send
                 // speed comes from the enlarged client OUTPUT buffer (see WSInterface), not from
                 // firing async.
-                wsInterface.getSession().getBasicRemote().sendBinary(byteBuffer);
+                wsInterface.getSession().sendBinary(byteBuffer);
             } else {
                 LOG.warn("send(bytes): WS not connected");
             }
@@ -95,7 +95,7 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
-                wsInterface.getSession().getBasicRemote().sendBinary(byteBuffer, complete);
+                wsInterface.getSession().sendBinary(byteBuffer, complete);
             } else {
                 LOG.warn("sendPartial(bytes): WS not connected");
             }
@@ -123,13 +123,9 @@ public class DataPlaneInterface {
 
     class WSLogStreamerCallback implements WSCallback {
         @Override
-        public void onConnect(Session sess) {
-            try {
-                LOG.debug("WSLogStreamerCallback query: {}", wsConfig.get("stream_query"));
-                sess.getBasicRemote().sendText(wsConfig.get("stream_query"));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        public void onConnect(WsConn sess) {
+            LOG.debug("WSLogStreamerCallback query: {}", wsConfig.get("stream_query"));
+            sess.sendText(wsConfig.get("stream_query"));
         }
 
         @Override
@@ -138,7 +134,7 @@ public class DataPlaneInterface {
         }
 
         @Override
-        public void onMessage(Session sess, String msg) {
+        public void onMessage(WsConn sess, String msg) {
             try {
                 if(messageCount == 0) {
                     Map<String, String> statusMap = gson.fromJson(msg, type);

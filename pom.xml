@@ -14,8 +14,8 @@
         <maven.compiler.version>3.13.0</maven.compiler.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <!-- Match the server (wsapi): Jetty 12 + jakarta.websocket (EE10). -->
-        <jetty.version>12.1.10</jetty.version>
+        <!-- Netty WebSocket client (matches the wsapi Netty server). -->
+        <netty.version>4.2.2.Final</netty.version>
         <slf4j.version>2.0.6</slf4j.version>
 
     </properties>
@@ -28,20 +28,18 @@
             <version>1.3-SNAPSHOT</version>
         </dependency>
 
-        <!-- Jetty 12 EE10 jakarta.websocket CLIENT. Transitively brings the jakarta
-             websocket client-api, jetty-client, jetty-io (ClientConnector),
-             jetty-util (SslContextFactory) and the websocket-core layers. -->
+        <!-- Netty WebSocket CLIENT (replaces Jetty 12). netty-codec-http = HTTP/1.1 + WebSocket
+             client handlers; netty-handler = SslHandler + InsecureTrustManagerFactory (trust-all,
+             the server uses a self-signed cert). Shaded into the client jar. -->
         <dependency>
-            <groupId>org.eclipse.jetty.ee10.websocket</groupId>
-            <artifactId>jetty-ee10-websocket-jakarta-client</artifactId>
-            <version>${jetty.version}</version>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http</artifactId>
+            <version>${netty.version}</version>
         </dependency>
-
-        <!-- Explicit for HttpClient + HttpClientTransportDynamic (also transitive above). -->
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-client</artifactId>
-            <version>${jetty.version}</version>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+            <version>${netty.version}</version>
         </dependency>
 
         <!-- SLF4J API + a JDK14 (java.util.logging) binding so Jetty 12's SLF4J calls

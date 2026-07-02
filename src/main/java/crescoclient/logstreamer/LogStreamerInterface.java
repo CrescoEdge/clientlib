@@ -6,7 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import crescoclient.core.OnMessageCallback;
 import crescoclient.core.WSCallback;
 import crescoclient.core.WSInterface;
-import jakarta.websocket.Session;
+import crescoclient.core.WsConn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +56,7 @@ public class LogStreamerInterface {
     public void send(String message) {
 
         try {
-            wsInterface.getSession().getBasicRemote().sendText(message);
+            wsInterface.getSession().sendText(message);
         } catch (Exception e) {
             LOG.error("send() failed", e);
         }
@@ -81,7 +81,7 @@ public class LogStreamerInterface {
 
     class WSLogStreamerCallback implements WSCallback {
         @Override
-        public void onConnect(Session sess) {
+        public void onConnect(WsConn sess) {
 
         }
 
@@ -91,7 +91,7 @@ public class LogStreamerInterface {
         }
 
         @Override
-        public void onMessage(Session sess, String msg) {
+        public void onMessage(WsConn sess, String msg) {
             try {
                 if(messageCount == 0) {
                     Map<String, String> statusMap = gson.fromJson(msg, type);
