@@ -66,6 +66,14 @@
             <version>${slf4j.version}</version>
         </dependency>
 
+        <!-- Test: JUnit 5 for the conformance/parity + reply-parsing suites. gson (for parsing the
+             shared golden corpus) is already on the classpath transitively via io.cresco.library. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 
@@ -134,6 +142,13 @@
                         <exclude>example/**</exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+
+            <!-- Runs the JUnit 5 conformance/parity + reply-parsing suites (src/test/java). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
             </plugin>
 
             <plugin>

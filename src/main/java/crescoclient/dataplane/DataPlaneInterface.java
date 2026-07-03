@@ -19,6 +19,10 @@ public class DataPlaneInterface {
 
     private boolean isActive = false;
     private int messageCount = 0;
+    // client-side counters exposed via get_metrics() (parity with the Python dataplane)
+    private long messagesSent = 0;
+    private long bytesReceived = 0;
+    private long bytesSent = 0;
     private Map<String,String> wsConfig;
     private static final Logger LOG = LoggerFactory.getLogger(DataPlaneInterface.class);
     private WSInterface wsInterface;
@@ -73,6 +77,8 @@ public class DataPlaneInterface {
         try {
             if(wsInterface.connected()) {
                 wsInterface.getSession().sendText(message);
+                messagesSent++;
+                bytesSent += message.length();
             } else {
                 LOG.warn("send(text): WS not connected");
             }
@@ -85,11 +91,14 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
+                int n = byteBuffer.remaining();
                 // Blocking send paces the sender to the consumer's drain rate (same throughput as
                 // async, but bounded latency instead of an unbounded outgoing queue). The send
                 // speed comes from the enlarged client OUTPUT buffer (see WSInterface), not from
                 // firing async.
                 wsInterface.getSession().sendBinary(byteBuffer);
+                messagesSent++;
+                bytesSent += n;
             } else {
                 LOG.warn("send(bytes): WS not connected");
             }
@@ -116,7 +125,10 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
+                int n = byteBuffer.remaining();
                 wsInterface.getSession().sendBinary(byteBuffer, complete);
+                bytesSent += n;
+                if (complete) messagesSent++;
             } else {
                 LOG.warn("send_partial(bytes): WS not connected");
             }
@@ -177,6 +189,23 @@ public class DataPlaneInterface {
         return wsInterface.connected();
     }
 
+    /**
+     * Client-side dataplane counters for this stream connection (parity with the Python client's
+     * dataplane.get_metrics): stream_name, messages/bytes received and sent, and active.
+     *
+     * @return a map of this connection's counters
+     */
+    public Map<String,Object> get_metrics() {
+        Map<String,Object> m = new HashMap<>();
+        m.put("stream_name", wsConfig.get("stream_query"));
+        m.put("messages_received", messageCount);
+        m.put("messages_sent", messagesSent);
+        m.put("bytes_received", bytesReceived);
+        m.put("bytes_sent", bytesSent);
+        m.put("active", isActive);
+        return m;
+    }
+
     public void close() {
         closing = true;
         if (reconnectMonitor != null) {
@@ -217,6 +246,7 @@ public class DataPlaneInterface {
 
         @Override
         public void onMessage(byte[] b, int offset, int length) {
+            bytesReceived += length;
             onMessageCallback.onMessage(b, offset, length);
         }
 

@@ -73,7 +73,9 @@ public class Agents {
             Map<String,Object> message_payload = new HashMap<>();
             message_payload.put("action","cepadd");
             String json_cepparams = gson.toJson(cepparams);
-            message_payload.put("configparams",messaging.setCompressedParam(json_cepparams));
+            // server reads getCompressedParam("cepparams") (AgentExecutor.cepAdd); the old
+            // "configparams" key silently delivered null. Caught by the conformance suite.
+            message_payload.put("cepparams",messaging.setCompressedParam(json_cepparams));
 
             responce = messaging.global_agent_msgevent(true,message_event_type,message_payload,dst_region,dst_agent);
 
@@ -164,7 +166,10 @@ public class Agents {
                 message_payload.put("configparams",messaging.setCompressedParam(json_configparams));
                 message_payload.put("jardata",messaging.setCompressedDataParam(Files.readAllBytes(jar_file)));
 
-                responce = messaging.global_controller_msgevent(true,message_event_type,message_payload);
+                // pluginupload is an AgentExecutor action: route to the target agent, not the global
+                // controller. The old global_controller route ignored dst_region/dst_agent (never
+                // reached the agent). Caught by the conformance suite vs the Python client.
+                responce = messaging.global_agent_msgevent(true,message_event_type,message_payload,dst_region,dst_agent);
 
             } else {
                 System.out.println("upload_jar_info: file does not exist: " + jar_file_path);
