@@ -45,7 +45,7 @@ public class Launcher {
             }
 
             String DPQuery = "region_id IS NOT NULL AND agent_id IS NOT NULL";
-            DataPlaneInterface dataPlaneRec = client.getDataPlane(DPQuery, new BytePrinter());
+            DataPlaneInterface dataPlaneRec = client.get_dataplane(DPQuery, new BytePrinter());
             dataPlaneRec.start();
             while(!dataPlaneRec.connected()) {
                 Thread.sleep(1000);
@@ -84,7 +84,7 @@ public class Launcher {
             update.put("repo_plugin_id",plugin.getPluginID());
             update.put("transfer_id", String.valueOf(transferId));
 
-            TextMessage updateMessage = plugin.getAgentService().getDataPlaneService().createTextMessage();
+            TextMessage updateMessage = plugin.getAgentService().get_dataplaneService().createTextMessage();
             updateMessage.setText(gson.toJson(update));
             updateMessage.setStringProperty("filerepo_name",filerepoName);
             updateMessage.setBooleanProperty("broadcast",Boolean.TRUE);
@@ -110,7 +110,7 @@ public class Launcher {
                 }
             }
 
-            DataPlaneInterface dataPlaneRec = client.getDataPlane("tabby=pooter", new BytePrinter());
+            DataPlaneInterface dataPlaneRec = client.get_dataplane("tabby=pooter", new BytePrinter());
             dataPlaneRec.start();
             while(!dataPlaneRec.connected()) {
                 Thread.sleep(1000);

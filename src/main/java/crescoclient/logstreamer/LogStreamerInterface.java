@@ -66,12 +66,24 @@ public class LogStreamerInterface {
         send(dst_region + ',' + dst_agent + ",Trace,default");
     }
 
+    public void update_config_class(String dst_region, String dst_agent, String loglevel, String baseclass) {
+        send(dst_region + ',' + dst_agent + ',' + loglevel + ',' + baseclass);
+    }
+
     public void start() {
         wsInterface.start(connectionTimeout);
         //wsInterface.connect();
     }
 
+    public void connect() {
+        start();
+    }
+
     public boolean connected() {
+        return wsInterface.connected();
+    }
+
+    public boolean is_active() {
         return wsInterface.connected();
     }
 

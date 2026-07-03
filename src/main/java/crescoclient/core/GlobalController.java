@@ -24,7 +24,7 @@ public class GlobalController {
         utils = new Utils();
     }
 
-    public String getPipelineIdByName(String pipelineName) {
+    public String get_pipeline_id_by_name(String pipelineName) {
 
         String pipelineId = null;
         try {
@@ -114,26 +114,6 @@ public class GlobalController {
         return agentlist;
     }
 
-    public List<Map<String,String>> get_plugin_list(String dst_region, String dst_agent) {
-
-        List<Map<String,String>> pluginlist = null;
-        try {
-            String message_event_type = "CONFIG";
-            Map<String,Object> message_payload = new HashMap<>();
-            message_payload.put("action","pluginlist");
-
-
-            Map<String,String> reply = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
-            String pluginlistStr = messaging.getCompressedParam(reply.get("plugin_list"));
-            pluginlist = messaging.getListMapFromString(pluginlistStr);
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-        return pluginlist;
-    }
-
     public Map<String,List<Map<String,String>>> get_plugin_repo_list() {
 
         Map<String,List<Map<String,String>>> pluginRepoList = null;
@@ -155,7 +135,7 @@ public class GlobalController {
 
 
 
-    public Map<String,List<Map<String,String>>> get_agent_resource(String dst_region, String dst_agent) {
+    public Map<String,List<Map<String,String>>> get_agent_resources(String dst_region, String dst_agent) {
         Map<String,List<Map<String,String>>> agentlist = null;
         try {
             String message_event_type = "EXEC";
@@ -284,7 +264,7 @@ public class GlobalController {
     }
 
 
-    public Map<String, String> submit_pipeline(String tenantId, Map<String, Object> cadl) {
+    public Map<String, String> submit_pipeline(Map<String, Object> cadl, String tenantId) {
 
         Map<String, String> reply = null;
 
@@ -308,7 +288,7 @@ public class GlobalController {
         return reply;
     }
 
-    public Map<String, String> submit_pipeline(String tenantId, String json_cadl) {
+    public Map<String, String> submit_pipeline(String json_cadl, String tenantId) {
 
         Map<String, String> reply = null;
 
@@ -330,7 +310,7 @@ public class GlobalController {
         return reply;
     }
 
-    public Map<String, String> get_pipeline_isassignmentinfo(String inode_id, String resource_id) {
+    public Map<String, String> get_pipeline_is_assignment_info(String inode_id, String resource_id) {
 
         Map<String, String> reply = null;
 
@@ -341,7 +321,6 @@ public class GlobalController {
             message_payload.put("action","getisassignmentinfo");
             message_payload.put("action_inodeid", inode_id);
             message_payload.put("action_resourceid", resource_id);
-            System.out.println(message_payload);
             reply = messaging.global_controller_msgevent(true, message_event_type, message_payload);
 
 

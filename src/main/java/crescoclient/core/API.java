@@ -3,8 +3,8 @@ package crescoclient.core;
 import com.google.gson.Gson;
 import crescoclient.msgevent.MsgEventInterface;
 
+import java.util.AbstractMap;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class API {
@@ -22,46 +22,80 @@ public class API {
         this.messaging = messaging;
     }
 
-    public String getAPIRegionName() {
+    /**
+     * Get the API region name.
+     *
+     * @return Region name
+     */
+    public String get_api_region_name() {
         return msgEventInterface.getRegionName();
     }
-    public String getAPIAgentName() {
+
+    /**
+     * Get the API agent name.
+     *
+     * @return Agent name
+     */
+    public String get_api_agent_name() {
         return msgEventInterface.getAgentName();
     }
-    public String getAPIPluginName() {
+
+    /**
+     * Get the API plugin name.
+     *
+     * @return Plugin name
+     */
+    public String get_api_plugin_name() {
         return msgEventInterface.getPluginName();
     }
 
-    private void getGlobalInfo() {
+    /**
+     * Get the global region.
+     *
+     * @return Global region or null
+     */
+    public String get_global_region() {
+
+        if(globalRegion == null) {
+            get_global_info();
+        }
+
+        return globalRegion;
+    }
+
+    /**
+     * Get the global agent.
+     *
+     * @return Global agent or null
+     */
+    public String get_global_agent() {
+
+        if(globalAgent == null) {
+            get_global_info();
+        }
+
+        return globalAgent;
+    }
+
+    /**
+     * Get global information.
+     *
+     * @return Pair of (global_region, global_agent): getKey() is the global region, getValue() the global agent
+     */
+    public Map.Entry<String,String> get_global_info() {
         try {
             String message_event_type = "EXEC";
             Map<String,Object> message_payload = new HashMap<>();
 
             message_payload.put("action","globalinfo");
-            Map<String,String> reply = messaging.plugin_msgevent(true, message_event_type, message_payload, getAPIPluginName());
+            Map<String,String> reply = messaging.plugin_msgevent(true, message_event_type, message_payload, get_api_plugin_name());
             globalRegion = reply.get("global_region");
             globalAgent = reply.get("global_agent");
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-    }
-    public String getGlobalRegion() {
-
-        if(globalRegion == null) {
-            getGlobalInfo();
-        }
-
-        return globalRegion;
-    }
-
-    public String getGlobalAgent() {
-
-        if(globalAgent == null) {
-            getGlobalInfo();
-        }
-
-        return globalAgent;
+        return new AbstractMap.SimpleEntry<>(globalRegion, globalAgent);
     }
 
 }

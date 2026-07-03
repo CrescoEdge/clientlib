@@ -39,7 +39,7 @@ public class SingleNodeTunnelTest {
     public String deploySingleNodeSTunnel(String pipelineName) throws InterruptedException {
 
         //Check if there is an existing pipeline with the same name
-        String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
+        String pipelineId = client.globalcontroller.get_pipeline_id_by_name(pipelineName);
         //If there is a pipeline remove it
         if (pipelineId != null) {
             client.globalcontroller.remove_pipeline(pipelineId);
@@ -76,8 +76,8 @@ public class SingleNodeTunnelTest {
         params0.put("pluginname", sTunnelConfigParams.get("pluginname"));
         params0.put("md5", sTunnelConfigParams.get("md5"));
         params0.put("version", sTunnelConfigParams.get("version"));
-        params0.put("location_region", client.api.getAPIRegionName());
-        params0.put("location_agent", client.api.getAPIAgentName());
+        params0.put("location_region", client.api.get_api_region_name());
+        params0.put("location_agent", client.api.get_api_agent_name());
 
         Map<String, Object> node0 = new HashMap<>();
         node0.put("type", "dummy");
@@ -91,8 +91,8 @@ public class SingleNodeTunnelTest {
         params1.put("pluginname", sTunnelConfigParams.get("pluginname"));
         params1.put("md5", sTunnelConfigParams.get("md5"));
         params1.put("version", sTunnelConfigParams.get("version"));
-        params1.put("location_region", client.api.getAPIRegionName());
-        params1.put("location_agent", client.api.getAPIAgentName());
+        params1.put("location_region", client.api.get_api_region_name());
+        params1.put("location_agent", client.api.get_api_agent_name());
 
         Map<String, Object> node1 = new HashMap<>();
         node1.put("type", "dummy");
@@ -116,7 +116,7 @@ public class SingleNodeTunnelTest {
         cadl.put("edges", edges);
 
         //Submit pipeline
-        Map<String, String> reply = client.globalcontroller.submit_pipeline("0", cadl);
+        Map<String, String> reply = client.globalcontroller.submit_pipeline(cadl, "0");
         //Get pipelineId
         pipelineId = reply.get("gpipeline_id");
 

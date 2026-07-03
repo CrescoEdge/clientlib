@@ -42,7 +42,7 @@ public class TunnelTesting {
     public void tunnelTest(String clientRegion, String clientAgent) throws InterruptedException {
 
         String pipelineName = "sTunnelExample tunnel test";
-        String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
+        String pipelineId = client.globalcontroller.get_pipeline_id_by_name(pipelineName);
         client.globalcontroller.remove_pipeline(pipelineId);
 
         String sTunnelAppId = deployMultiNodeSTunnel(pipelineName, clientRegion, clientAgent);
@@ -55,7 +55,7 @@ public class TunnelTesting {
         try {
 
 
-            //String sTunnelAppId = testers.getPipelineIdByName(pipelineName);
+            //String sTunnelAppId = testers.get_pipeline_id_by_name(pipelineName);
             //String sTunnelAppId = deploySingleNodeSTunnel(pipelineName);
             //String sTunnelAppId = deployMultiNodeSTunnel(pipelineName);
             //String sTunnelAppId = "resource-13d93383-8687-4b5c-8325-31e57445bfb3";
@@ -101,7 +101,7 @@ public class TunnelTesting {
     public String deploySingleNodeSTunnel(String pipelineName) throws InterruptedException {
 
         //Check if there is an existing pipeline with the same name
-        String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
+        String pipelineId = client.globalcontroller.get_pipeline_id_by_name(pipelineName);
         //If there is a pipeline remove it
         if (pipelineId != null) {
             client.globalcontroller.remove_pipeline(pipelineId);
@@ -140,8 +140,8 @@ public class TunnelTesting {
         params0.put("pluginname", sTunnelConfigParams.get("pluginname"));
         params0.put("md5", sTunnelConfigParams.get("md5"));
         params0.put("version", sTunnelConfigParams.get("version"));
-        params0.put("location_region", client.api.getAPIRegionName());
-        params0.put("location_agent", client.api.getAPIAgentName());
+        params0.put("location_region", client.api.get_api_region_name());
+        params0.put("location_agent", client.api.get_api_agent_name());
 
         Map<String, Object> node0 = new HashMap<>();
         node0.put("type", "dummy");
@@ -155,8 +155,8 @@ public class TunnelTesting {
         params1.put("pluginname", sTunnelConfigParams.get("pluginname"));
         params1.put("md5", sTunnelConfigParams.get("md5"));
         params1.put("version", sTunnelConfigParams.get("version"));
-        params1.put("location_region", client.api.getAPIRegionName());
-        params1.put("location_agent", client.api.getAPIAgentName());
+        params1.put("location_region", client.api.get_api_region_name());
+        params1.put("location_agent", client.api.get_api_agent_name());
 
         Map<String, Object> node1 = new HashMap<>();
         node1.put("type", "dummy");
@@ -180,7 +180,7 @@ public class TunnelTesting {
         cadl.put("edges", edges);
 
         //Submit pipeline
-        Map<String, String> reply = client.globalcontroller.submit_pipeline("0", cadl);
+        Map<String, String> reply = client.globalcontroller.submit_pipeline(cadl, "0");
         //Get pipelineId
         pipelineId = reply.get("gpipeline_id");
 
@@ -202,7 +202,7 @@ public class TunnelTesting {
     public String deployMultiNodeSTunnel(String pipelineName, String clientRegion, String clientAgent) throws InterruptedException {
 
         //Check if there is an existing pipeline with the same name
-        String pipelineId = client.globalcontroller.getPipelineIdByName(pipelineName);
+        String pipelineId = client.globalcontroller.get_pipeline_id_by_name(pipelineName);
         //If there is a pipeline remove it
         if (pipelineId != null) {
             client.globalcontroller.remove_pipeline(pipelineId);
@@ -228,7 +228,7 @@ public class TunnelTesting {
 
 
         if(clientRegion == null) {
-            String globalRegion = client.api.getGlobalRegion();
+            String globalRegion = client.api.get_global_region();
             List<Map<String, String>> regionList = client.globalcontroller.get_region_list().get("regions");
             for (Map<String, String> regionMap : regionList) {
                 if (!regionMap.get("name").equals(globalRegion)) {
@@ -239,7 +239,7 @@ public class TunnelTesting {
                 clientRegion = globalRegion;
             }
 
-            String globalAgent = client.api.getGlobalAgent();
+            String globalAgent = client.api.get_global_agent();
             if(clientAgent == null) {
 
                 List<Map<String, String>> agentList = client.globalcontroller.get_agent_list(clientRegion).get("agents");
@@ -276,8 +276,8 @@ public class TunnelTesting {
             params0.put("pluginname", sTunnelConfigParams.get("pluginname"));
             params0.put("md5", sTunnelConfigParams.get("md5"));
             params0.put("version", sTunnelConfigParams.get("version"));
-            params0.put("location_region", client.api.getAPIRegionName());
-            params0.put("location_agent", client.api.getAPIAgentName());
+            params0.put("location_region", client.api.get_api_region_name());
+            params0.put("location_agent", client.api.get_api_agent_name());
 
             Map<String, Object> node0 = new HashMap<>();
             node0.put("type", "dummy");
@@ -294,7 +294,7 @@ public class TunnelTesting {
             if(clientRegion != null) {
                 params1.put("location_region", clientRegion);
             } else {
-                params1.put("location_region", client.api.getAPIRegionName());
+                params1.put("location_region", client.api.get_api_region_name());
             }
             params1.put("location_agent", clientAgent);
 
@@ -320,7 +320,7 @@ public class TunnelTesting {
             cadl.put("edges", edges);
 
             //Submit pipeline
-            Map<String, String> reply = client.globalcontroller.submit_pipeline("0", cadl);
+            Map<String, String> reply = client.globalcontroller.submit_pipeline(cadl, "0");
             //Get pipelineId
             pipelineId = reply.get("gpipeline_id");
 

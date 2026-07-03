@@ -63,9 +63,9 @@ public class FileRepoPerformanceTesting {
             // Schedule the timer task to run every second
             timer.schedule(task, 0, 1000);
 
-            System.out.println("API: region: " + crescoClient.api.getAPIRegionName() + " agent: " + crescoClient.api.getAPIAgentName() + " plugin: " + crescoClient.api.getAPIPluginName());
-            String dst_region = crescoClient.api.getGlobalRegion();
-            String dst_agent = crescoClient.api.getGlobalAgent();
+            System.out.println("API: region: " + crescoClient.api.get_api_region_name() + " agent: " + crescoClient.api.get_api_agent_name() + " plugin: " + crescoClient.api.get_api_plugin_name());
+            String dst_region = crescoClient.api.get_global_region();
+            String dst_agent = crescoClient.api.get_global_agent();
             System.out.println("Global Controller: region: " + dst_region + " agent:" + dst_agent);
             System.out.println("---");
 
@@ -111,9 +111,9 @@ public class FileRepoPerformanceTesting {
 
         String pipelineId = null;
         try {
-            System.out.println("API: region: " + crescoClient.api.getAPIRegionName() + " agent: " + crescoClient.api.getAPIAgentName() + " plugin: " + crescoClient.api.getAPIPluginName());
-            String dst_region = crescoClient.api.getGlobalRegion();
-            String dst_agent = crescoClient.api.getGlobalAgent();
+            System.out.println("API: region: " + crescoClient.api.get_api_region_name() + " agent: " + crescoClient.api.get_api_agent_name() + " plugin: " + crescoClient.api.get_api_plugin_name());
+            String dst_region = crescoClient.api.get_global_region();
+            String dst_agent = crescoClient.api.get_global_agent();
             System.out.println("Global Controller: region: " + dst_region + " agent:" + dst_agent);
             System.out.println("---");
 
@@ -121,7 +121,7 @@ public class FileRepoPerformanceTesting {
             //String repoName = "testrepo";
             //String repoPath = "/Users/cody/IdeaProjects/neuros3sa/repo_data";
 
-            pipelineId = getPipelineIdByName(pipelineName);
+            pipelineId = get_pipeline_id_by_name(pipelineName);
             if (pipelineId == null) {
                 //boolean isRemoved = crescoClient.globalcontroller.remove_pipeline(pipelineId);
                 //if (isRemoved) {
@@ -142,7 +142,7 @@ public class FileRepoPerformanceTesting {
         boolean launchRepo = true;
 
         //Check if the pipeline is running
-        String pipelineId = getPipelineIdByName(pipelineName);
+        String pipelineId = get_pipeline_id_by_name(pipelineName);
 
         if(pipelineId != null) {
             //get status of running pipeline
@@ -189,8 +189,8 @@ public class FileRepoPerformanceTesting {
             params0.put("pluginname", fileRepoConfigParams.get("pluginname"));
             params0.put("md5", fileRepoConfigParams.get("md5"));
             params0.put("version", fileRepoConfigParams.get("version"));
-            params0.put("location_region", crescoClient.api.getAPIRegionName());
-            params0.put("location_agent", crescoClient.api.getAPIAgentName());
+            params0.put("location_region", crescoClient.api.get_api_region_name());
+            params0.put("location_agent", crescoClient.api.get_api_agent_name());
             params0.put("filerepo_name", repo_name_1);
             params0.put("scan_dir", repo_path_1);
 
@@ -206,8 +206,8 @@ public class FileRepoPerformanceTesting {
             params1.put("pluginname", fileRepoConfigParams.get("pluginname"));
             params1.put("md5", fileRepoConfigParams.get("md5"));
             params1.put("version", fileRepoConfigParams.get("version"));
-            params1.put("location_region", crescoClient.api.getAPIRegionName());
-            params1.put("location_agent", crescoClient.api.getAPIAgentName());
+            params1.put("location_region", crescoClient.api.get_api_region_name());
+            params1.put("location_agent", crescoClient.api.get_api_agent_name());
             params1.put("filerepo_name", repo_name_1);
             params1.put("scan_dir", repo_path_1);
 
@@ -218,7 +218,7 @@ public class FileRepoPerformanceTesting {
             cadl.put("edges", edges);
 
             //Submit pipeline
-            Map<String, String> reply = crescoClient.globalcontroller.submit_pipeline("0", cadl);
+            Map<String, String> reply = crescoClient.globalcontroller.submit_pipeline(cadl, "0");
             //Get pipelineId
             pipelineId = reply.get("gpipeline_id");
 
@@ -240,7 +240,7 @@ public class FileRepoPerformanceTesting {
 
     }
 
-    public String getPipelineIdByName(String pipelineName) {
+    public String get_pipeline_id_by_name(String pipelineName) {
 
         String pipelineId = null;
 
@@ -324,7 +324,7 @@ public class FileRepoPerformanceTesting {
 
             String queryString = gson.toJson(configDB);
 
-            transferStreamer = crescoClient.getDataPlane(queryString, new TransferCallback());
+            transferStreamer = crescoClient.get_dataplane(queryString, new TransferCallback());
             transferStreamer.start();
             while(!transferStreamer.connected()) {
                 Thread.sleep(1000);

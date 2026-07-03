@@ -58,13 +58,13 @@ public class Agents {
         return controllerStatus;
     }
 
-    public Map<String,String> cepadd(String input_stream, String input_stream_dec, String output_stream, String output_stream_desc, String query, String dst_region, String dst_agent){
+    public Map<String,String> cepadd(String input_stream, String input_stream_desc, String output_stream, String output_stream_desc, String query, String dst_region, String dst_agent){
         Map<String,String> responce = null;
         try {
 
             Map<String,Object> cepparams  = new HashMap<>();
             cepparams.put("input_stream",input_stream);
-            cepparams.put("input_stream_desc",input_stream_dec);
+            cepparams.put("input_stream_desc",input_stream_desc);
             cepparams.put("output_stream",output_stream);
             cepparams.put("output_stream_desc",output_stream_desc);
             cepparams.put("query",query);
@@ -218,7 +218,84 @@ public class Agents {
         return responce;
     }
 
-    public Map<String,String> get_log(String dst_region, String dst_agent) {
+    /**
+     * List plugins on an agent.
+     *
+     * @param dst_region Destination region
+     * @param dst_agent Destination agent
+     * @return List of plugins
+     */
+    public java.util.List<Map<String,String>> list_plugin_agent(String dst_region, String dst_agent) {
+        java.util.List<Map<String,String>> pluginlist = null;
+        try {
+            String message_event_type = "CONFIG";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","pluginlist");
+
+            Map<String,String> reply = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
+            String pluginlistStr = messaging.getCompressedParam(reply.get("plugin_list"));
+            pluginlist = messaging.getListMapFromString(pluginlistStr);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return pluginlist;
+    }
+
+    /**
+     * Get plugin status.
+     *
+     * @param dst_region Destination region
+     * @param dst_agent Destination agent
+     * @param plugin_id Plugin ID
+     * @return Plugin status information
+     */
+    public Map<String,String> status_plugin_agent(String dst_region, String dst_agent, String plugin_id) {
+        Map<String,String> responce = null;
+        try {
+            String message_event_type = "CONFIG";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","pluginstatus");
+            message_payload.put("pluginid",plugin_id);
+
+            responce = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return responce;
+    }
+
+    /**
+     * Get agent information.
+     *
+     * @param dst_region Destination region
+     * @param dst_agent Destination agent
+     * @return Agent information
+     */
+    public Map<String,String> get_agent_info(String dst_region, String dst_agent) {
+        Map<String,String> responce = null;
+        try {
+            String message_event_type = "CONFIG";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","getagentinfo");
+
+            responce = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return responce;
+    }
+
+    /**
+     * Get agent logs.
+     *
+     * @param dst_region Destination region
+     * @param dst_agent Destination agent
+     * @return Agent logs
+     */
+    public Map<String,String> get_agent_log(String dst_region, String dst_agent) {
         Map<String,String> responce = null;
         try {
 

@@ -36,7 +36,7 @@ public class TestUtils {
         gson = new Gson();
     }
 
-    public String getPipelineIdByName(String pipelineName) {
+    public String get_pipeline_id_by_name(String pipelineName) {
 
         String pipelineId = null;
 
@@ -57,7 +57,7 @@ public class TestUtils {
         boolean launchRepo = true;
 
         //Check if the pipeline is running
-        String pipelineId = getPipelineIdByName(pipelineName);
+        String pipelineId = get_pipeline_id_by_name(pipelineName);
 
         if(pipelineId != null) {
             //get status of running pipeline
@@ -102,8 +102,8 @@ public class TestUtils {
             params0.put("pluginname", fileRepoConfigParams.get("pluginname"));
             params0.put("md5", fileRepoConfigParams.get("md5"));
             params0.put("version", fileRepoConfigParams.get("version"));
-            params0.put("location_region", client.api.getAPIRegionName());
-            params0.put("location_agent", client.api.getAPIAgentName());
+            params0.put("location_region", client.api.get_api_region_name());
+            params0.put("location_agent", client.api.get_api_agent_name());
             params0.put("filerepo_name", repo_name_1);
             params0.put("scan_dir", repo_path_1);
 
@@ -119,8 +119,8 @@ public class TestUtils {
             params1.put("pluginname", fileRepoConfigParams.get("pluginname"));
             params1.put("md5", fileRepoConfigParams.get("md5"));
             params1.put("version", fileRepoConfigParams.get("version"));
-            params1.put("location_region", client.api.getAPIRegionName());
-            params1.put("location_agent", client.api.getAPIAgentName());
+            params1.put("location_region", client.api.get_api_region_name());
+            params1.put("location_agent", client.api.get_api_agent_name());
             params1.put("filerepo_name", repo_name_2);
             params1.put("scan_dir", repo_path_2);
 
@@ -146,7 +146,7 @@ public class TestUtils {
             cadl.put("edges", edges);
 
             //Submit pipeline
-            Map<String, String> reply = client.globalcontroller.submit_pipeline("0", cadl);
+            Map<String, String> reply = client.globalcontroller.submit_pipeline(cadl, "0");
             //Get pipelineId
             pipelineId = reply.get("gpipeline_id");
 
@@ -264,13 +264,13 @@ public class TestUtils {
 
     public void getResourcesAndLists() {
 
-        String dst_region = client.api.getGlobalRegion();
-        String dst_agent = client.api.getGlobalAgent();
+        String dst_region = client.api.get_global_region();
+        String dst_agent = client.api.get_global_agent();
 
         Map<String, List<Map<String,String>>> agentsList = client.globalcontroller.get_agent_list(dst_region);
         System.out.println("Agent List: " + agentsList);
 
-        //Map<String,List<Map<String,String>>> agentResources = client.globalcontroller.get_agent_resource(dst_region, dst_agent);
+        //Map<String,List<Map<String,String>>> agentResources = client.globalcontroller.get_agent_resources(dst_region, dst_agent);
         //System.out.println("Agent Resources: " + agentResources);
 
         Map<String,List<Map<String,String>>> pluginResources = client.globalcontroller.get_repo_plugins();
@@ -286,7 +286,7 @@ public class TestUtils {
 
     public void logStreaming() {
 
-        LogStreamerInterface ls = client.getLogStreamer();
+        LogStreamerInterface ls = client.get_logstreamer();
         ls.start();
         while (!ls.connected()) {
             try {
@@ -296,8 +296,8 @@ public class TestUtils {
             }
         }
 
-        String dst_region = client.api.getGlobalRegion();
-        String dst_agent = client.api.getGlobalAgent();
+        String dst_region = client.api.get_global_region();
+        String dst_agent = client.api.get_global_agent();
 
         ls.update_config(dst_region, dst_agent);
 
@@ -315,7 +315,7 @@ public class TestUtils {
 
         String jsonConfig = gson.toJson(configDB);
 
-        DataPlaneInterface dataPlane = client.getDataPlane(jsonConfig);
+        DataPlaneInterface dataPlane = client.get_dataplane(jsonConfig);
         dataPlane.start();
 
         int count = 25;
@@ -461,11 +461,11 @@ public class TestUtils {
     //Map<String, String> addi = client.globalcontroller.get_pipeline_export(pipeline_id);
     //System.out.println(client.messaging.getCompressedParam(addi.get("gpipeline")));
 
-    //Map<String,String> responce = client.agents.get_log(dst_region, dst_agent);
+    //Map<String,String> responce = client.agents.get_agent_log(dst_region, dst_agent);
     //String info = new String(client.messaging.getCompressedDataParam(responce.get("log")));
     //Map<String,List<Map<String,String>>> regionList = client.globalcontroller.get_region_list();
     //System.out.println(regionList);
-    //Map<String,String> responce = client.agents.get_log(dst_region, dst_agent);
+    //Map<String,String> responce = client.agents.get_agent_log(dst_region, dst_agent);
     //List<Map<String,String>> responce = client.globalcontroller.get_plugin_list(dst_region, dst_agent);
     //Map<String,List<Map<String,String>>> responce = client.globalcontroller.get_plugin_repo_list();
     //System.out.println(responce);
@@ -564,11 +564,11 @@ public class TestUtils {
             }
 
             String queryStringRepo1 = "filerepo_name='" + repo_name_1 + "' AND broadcast";
-            DataPlaneInterface dataPlaneRepo1 = client.getDataPlane(queryStringRepo1, new RepoPrinter());
+            DataPlaneInterface dataPlaneRepo1 = client.get_dataplane(queryStringRepo1, new RepoPrinter());
             dataPlaneRepo1.start();
 
             String queryStringRepo2 = "filerepo_name='" + repo_name_2 + "' AND broadcast";
-            DataPlaneInterface dataPlaneRepo2 = client.getDataPlane(queryStringRepo2, new RepoPrinter());
+            DataPlaneInterface dataPlaneRepo2 = client.get_dataplane(queryStringRepo2, new RepoPrinter());
             dataPlaneRepo2.start();
 
 

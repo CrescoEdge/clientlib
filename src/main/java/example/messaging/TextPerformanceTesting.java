@@ -43,9 +43,9 @@ public class TextPerformanceTesting {
             // Schedule the timer task to run every second
             timer.schedule(task, 0, 1000);
 
-            System.out.println("API: region: " + client.api.getAPIRegionName() + " agent: " + client.api.getAPIAgentName() + " plugin: " + client.api.getAPIPluginName());
-            String dst_region = client.api.getGlobalRegion();
-            String dst_agent = client.api.getGlobalAgent();
+            System.out.println("API: region: " + client.api.get_api_region_name() + " agent: " + client.api.get_api_agent_name() + " plugin: " + client.api.get_api_plugin_name());
+            String dst_region = client.api.get_global_region();
+            String dst_agent = client.api.get_global_agent();
             System.out.println("Global Controller: region: " + dst_region + " agent:" + dst_agent);
             System.out.println("---");
 
@@ -84,13 +84,13 @@ public class TextPerformanceTesting {
                 }
             }
 
-            DataPlaneInterface dataPlaneRec = client.getDataPlane("", new BytePrinter());
+            DataPlaneInterface dataPlaneRec = client.get_dataplane("", new BytePrinter());
             dataPlaneRec.start();
             while(!dataPlaneRec.connected()) {
                 Thread.sleep(1000);
             }
 
-            DataPlaneInterface dataPlaneSend = client.getDataPlane(queryString);
+            DataPlaneInterface dataPlaneSend = client.get_dataplane(queryString);
             dataPlaneSend.start();
             while(!dataPlaneSend.connected()) {
                 Thread.sleep(1000);

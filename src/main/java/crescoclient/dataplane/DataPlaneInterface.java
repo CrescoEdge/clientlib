@@ -91,16 +91,30 @@ public class DataPlaneInterface {
         }
     }
 
-    public void sendPartial(ByteBuffer byteBuffer, boolean complete) {
+    public void send_binary(ByteBuffer byteBuffer) {
+        send(byteBuffer);
+    }
+
+    public void send_binary_file(String file_path) {
+        try {
+            byte[] data = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(file_path));
+            send(ByteBuffer.wrap(data));
+            LOG.info("Sent binary file {} ({} bytes)", file_path, data.length);
+        } catch (Exception e) {
+            LOG.error("send_binary_file failed: {}", file_path, e);
+        }
+    }
+
+    public void send_partial(ByteBuffer byteBuffer, boolean complete) {
 
         try {
             if(wsInterface.connected()) {
                 wsInterface.getSession().sendBinary(byteBuffer, complete);
             } else {
-                LOG.warn("sendPartial(bytes): WS not connected");
+                LOG.warn("send_partial(bytes): WS not connected");
             }
         } catch (Exception e) {
-            LOG.error("sendPartial(bytes) failed", e);
+            LOG.error("send_partial(bytes) failed", e);
         }
     }
 
@@ -113,7 +127,15 @@ public class DataPlaneInterface {
         //wsInterface.connect();
     }
 
+    public void connect() {
+        start();
+    }
+
     public boolean connected() {
+        return wsInterface.connected();
+    }
+
+    public boolean is_active() {
         return wsInterface.connected();
     }
 
