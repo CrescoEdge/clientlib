@@ -159,6 +159,45 @@ public class GlobalController {
         return agentlist;
     }
 
+    /**
+     * B-2 unified metrics: pull the fabric's unified metric inventory (controller Micrometer groups +
+     * every plugin's getmetrics + optional resource summary) as a JSON string.
+     *
+     * @param dst_region      if non-null with dst_agent, target that agent's controller directly (node scope);
+     *                        otherwise the query goes to the global controller.
+     * @param dst_agent       see dst_region.
+     * @param scope           "node" (this controller), "region" (its region), or "global" (whole mesh).
+     * @param include_plugins include each node's plugin metrics (default on server side).
+     * @param include_resource include the cpu/mem/disk resource summary (adds sysinfo RPC latency).
+     * @return the unified inventory JSON, or null on failure.
+     */
+    public String get_metric_inventory(String dst_region, String dst_agent, String scope,
+                                       boolean include_plugins, boolean include_resource) {
+        try {
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","getmetricinventory");
+            message_payload.put("action_scope", scope != null ? scope : "node");
+            message_payload.put("action_include_plugins", String.valueOf(include_plugins));
+            message_payload.put("action_include_resource", String.valueOf(include_resource));
+
+            Map<String,String> reply;
+            if (dst_region != null && dst_agent != null) {
+                reply = messaging.global_agent_msgevent(true, "EXEC", message_payload, dst_region, dst_agent);
+            } else {
+                reply = messaging.global_controller_msgevent(true, "EXEC", message_payload);
+            }
+            return reply != null ? reply.get("metricinventory") : null;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return null;
+        }
+    }
+
+    /** Convenience: whole-mesh unified inventory (scope=global, plugins on, resource on). */
+    public String get_metric_inventory() {
+        return get_metric_inventory(null, null, "global", true, true);
+    }
+
     public Map<String,List<Map<String,String>>> get_repo_plugins() {
         Map<String,List<Map<String,String>>> agentlist = null;
         try {
