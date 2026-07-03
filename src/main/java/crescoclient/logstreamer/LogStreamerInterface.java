@@ -28,6 +28,13 @@ public class LogStreamerInterface {
 
     private int connectionTimeout;
 
+    // Auto-reconnect monitor: re-establishes the stream if it drops after becoming active
+    // (WSInterface.start() only retries the initial connect). Mirrors the Python _reconnect_monitor.
+    private volatile boolean closing = false;
+    private volatile boolean reconnecting = false;
+    private Thread reconnectMonitor;
+    private static final long RECONNECT_CHECK_MS = 5000;
+
     public LogStreamerInterface(String host, int port, String serviceKey, int connectionTimeout) {
         this.connectionTimeout = connectionTimeout;
         wsConfig = new HashMap<>();
@@ -71,12 +78,43 @@ public class LogStreamerInterface {
     }
 
     public void start() {
+        closing = false;
         wsInterface.start(connectionTimeout);
-        //wsInterface.connect();
+        startReconnectMonitor();
     }
 
     public void connect() {
         start();
+    }
+
+    private synchronized void startReconnectMonitor() {
+        if (reconnectMonitor != null && reconnectMonitor.isAlive()) {
+            return;
+        }
+        reconnectMonitor = new Thread(() -> {
+            try {
+                Thread.sleep(2000); // initial delay before monitoring starts
+                while (!closing) {
+                    Thread.sleep(RECONNECT_CHECK_MS);
+                    if (closing) break;
+                    if (!wsInterface.connected()) {
+                        if (!reconnecting) {
+                            reconnecting = true;
+                            LOG.warn("Log streamer connection lost, attempting to reconnect...");
+                            wsInterface.start(connectionTimeout);
+                        }
+                    } else {
+                        reconnecting = false;
+                    }
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                LOG.debug("logstreamer reconnect monitor ended: {}", e.getMessage());
+            }
+        }, "logstreamer-reconnect-monitor");
+        reconnectMonitor.setDaemon(true);
+        reconnectMonitor.start();
     }
 
     public boolean connected() {
@@ -88,6 +126,10 @@ public class LogStreamerInterface {
     }
 
     public void close() {
+        closing = true;
+        if (reconnectMonitor != null) {
+            reconnectMonitor.interrupt();
+        }
         wsInterface.close();
     }
 
