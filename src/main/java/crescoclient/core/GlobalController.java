@@ -198,6 +198,36 @@ public class GlobalController {
         return get_metric_inventory(null, null, "global", true, true);
     }
 
+    /**
+     * Pull the fabric's self-describing capability inventory (LLM tool catalog) as JSON. Aggregates each
+     * node's controller-tier actions + every plugin's message actions (via getcapabilities). Only MsgEvent
+     * actions are callable tools; the optional OSGi surface is informational.
+     *
+     * @param scope           "node", "region", or "global".
+     * @param include_plugins include each node's plugin capability docs.
+     * @param include_osgi    include the OSGi Export-Package + registered service surface (informational).
+     * @return the capability inventory JSON, or null on failure.
+     */
+    public String get_capability_inventory(String scope, boolean include_plugins, boolean include_osgi) {
+        try {
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","getcapabilityinventory");
+            message_payload.put("action_scope", scope != null ? scope : "node");
+            message_payload.put("action_include_plugins", String.valueOf(include_plugins));
+            message_payload.put("action_include_osgi", String.valueOf(include_osgi));
+            Map<String,String> reply = messaging.global_controller_msgevent(true, "EXEC", message_payload);
+            return reply != null ? reply.get("capabilityinventory") : null;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return null;
+        }
+    }
+
+    /** Convenience: whole-mesh capability catalog (scope=global, plugins on, MsgEvent-only). */
+    public String get_capability_inventory() {
+        return get_capability_inventory("global", true, false);
+    }
+
     public Map<String,List<Map<String,String>>> get_repo_plugins() {
         Map<String,List<Map<String,String>>> agentlist = null;
         try {
