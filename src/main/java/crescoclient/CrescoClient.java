@@ -23,6 +23,7 @@ public class CrescoClient {
     public Admin admin;
     public API api;
     public GlobalController globalcontroller;
+    public Stunnel stunnel;
 
     // Named resource registries (mirror the Python client): track streams by identifier so they
     // can be closed/enumerated centrally.
@@ -65,6 +66,7 @@ public class CrescoClient {
         this.admin = new Admin(messaging);
         this.api = new API(msgEventInterface, messaging);
         this.globalcontroller = new GlobalController(messaging);
+        this.stunnel = new Stunnel(messaging, globalcontroller);
     }
 
     public boolean connect() throws InterruptedException {

@@ -114,6 +114,42 @@ public class GlobalController {
         return agentlist;
     }
 
+    public List<Map<String,String>> list_plugins(String dst_region, String dst_agent) {
+        // Reliable global-side plugin listing for an agent (global_controller_msgevent
+        // 'listplugins'), unlike Agents.list_plugin_agent which addresses the agent
+        // directly and can time out on edge nodes. Each record has 'pluginname' and
+        // 'name' (the plugin_id).
+        try {
+            String message_event_type = "EXEC";
+            Map<String,Object> message_payload = new HashMap<>();
+            message_payload.put("action","listplugins");
+            message_payload.put("action_region", dst_region);
+            message_payload.put("action_agent", dst_agent);
+
+            Map<String,String> reply = messaging.global_controller_msgevent(true,message_event_type,message_payload);
+            String pluginListStr = messaging.getCompressedParam(reply.get("pluginslist"));
+            Map<String,List<Map<String,String>>> pluginlist = messaging.getMapListMapFromString(pluginListStr);
+            return pluginlist.get("plugins");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return null;
+    }
+
+    public String find_plugin(String dst_region, String dst_agent, String pluginname) {
+        // Resolve a plugin's id by name on an agent, via the global controller (reliable;
+        // does not depend on the per-agent RPC path). Returns the plugin_id, or null.
+        List<Map<String,String>> plugins = list_plugins(dst_region, dst_agent);
+        if(plugins != null) {
+            for(Map<String,String> p : plugins) {
+                if(pluginname.equals(p.get("pluginname"))) {
+                    return p.get("name");
+                }
+            }
+        }
+        return null;
+    }
+
     public Map<String,List<Map<String,String>>> get_plugin_repo_list() {
 
         Map<String,List<Map<String,String>>> pluginRepoList = null;
