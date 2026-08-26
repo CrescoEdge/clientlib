@@ -6,8 +6,11 @@ import crescoclient.core.WsConn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.channel.Channel;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class MsgEventInterface {
@@ -17,11 +20,12 @@ public class MsgEventInterface {
     private WSInterface wsInterface;
 
     // The wsapi protocol replies with exactly one response per request and carries no
-    // correlation id, so the contract is one-outstanding-RPC-per-connection. A single
-    // reply queue (drained one-per-call) is the correct, race-free model. The previous
-    // thread/requestId map used the constant Sec-WebSocket-Key and dropped replies via an
-    // NPE under rapid sequential calls, which deadlocked recv().
-    private final LinkedBlockingQueue<String> messageQueue = new LinkedBlockingQueue<>();
+    // correlation id, so the contract is one-outstanding-RPC-per-CONNECTION. Sessions are
+    // per-thread (WSInterface.getSession keys by thread), so replies must be queued per
+    // connection as well: one queue shared by all threads let thread A consume thread B's
+    // reply (and send()'s stale-reply clear() nuked other threads' in-flight replies).
+    private final Map<Channel, LinkedBlockingQueue<String>> replyQueues = new ConcurrentHashMap<>();
+    private final ThreadLocal<LinkedBlockingQueue<String>> currentReplyQueue = new ThreadLocal<>();
     private int rpcTimeoutSeconds = 30;
 
     public MsgEventInterface(String host, int port, String serviceKey) {
@@ -50,10 +54,15 @@ public class MsgEventInterface {
 
         try {
             WsConn session = wsInterface.getSession(true);
+            // drop queues for connections that no longer exist so the map cannot grow unbounded
+            replyQueues.keySet().removeIf(ch -> !ch.isOpen());
+            LinkedBlockingQueue<String> queue =
+                    replyQueues.computeIfAbsent(session.channel(), ch -> new LinkedBlockingQueue<>());
+            currentReplyQueue.set(queue);
             if (isRPC) {
-                // Drop any stale reply from a previously timed-out RPC so recv() returns
-                // the response to THIS request.
-                messageQueue.clear();
+                // Drop any stale reply from a previously timed-out RPC on THIS connection so
+                // recv() returns the response to THIS request.
+                queue.clear();
             }
             session.sendText(message);
         } catch (Exception e) {
@@ -63,7 +72,12 @@ public class MsgEventInterface {
 
     public String recv() {
         try {
-            String responce = messageQueue.poll(rpcTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
+            LinkedBlockingQueue<String> queue = currentReplyQueue.get();
+            if (queue == null) {
+                LOG.warn("MsgEvent recv() called with no prior send() on this thread");
+                return null;
+            }
+            String responce = queue.poll(rpcTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
             if (responce == null) {
                 LOG.warn("MsgEvent recv() timed out after " + rpcTimeoutSeconds + "s");
             }
@@ -105,8 +119,13 @@ public class MsgEventInterface {
 
         @Override
         public void onMessage(WsConn sess, String msg) {
-            // One reply per outstanding RPC on this connection; hand it to recv().
-            messageQueue.offer(msg);
+            // One reply per outstanding RPC per connection; route it to that connection's caller.
+            LinkedBlockingQueue<String> queue = replyQueues.get(sess.channel());
+            if (queue != null) {
+                queue.offer(msg);
+            } else {
+                LOG.warn("MsgEvent reply on a connection with no registered caller - dropped");
+            }
         }
 
         @Override

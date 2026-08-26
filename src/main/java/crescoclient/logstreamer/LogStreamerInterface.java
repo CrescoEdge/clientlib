@@ -18,6 +18,9 @@ public class LogStreamerInterface {
 
     private boolean isActive = false;
     private int messageCount = 0;
+    // see DataPlaneInterface.handshakePending: first frame of EVERY (re)connect is the status
+    // response; a messageCount==0 gate is one-shot and breaks after any reconnect
+    private volatile boolean handshakePending = true;
     private Map<String,String> wsConfig;
     private static final Logger LOG = LoggerFactory.getLogger(LogStreamerInterface.class);
     private WSInterface wsInterface;
@@ -136,7 +139,8 @@ public class LogStreamerInterface {
     class WSLogStreamerCallback implements WSCallback {
         @Override
         public void onConnect(WsConn sess) {
-
+            handshakePending = true;   // re-arm for this session's status frame
+            isActive = false;
         }
 
         @Override
@@ -147,10 +151,13 @@ public class LogStreamerInterface {
         @Override
         public void onMessage(WsConn sess, String msg) {
             try {
-                if(messageCount == 0) {
+                if(handshakePending) {
+                    handshakePending = false;
                     Map<String, String> statusMap = gson.fromJson(msg, type);
                     if(statusMap.get("status_code").equals("10")) {
                         isActive = true;
+                    } else {
+                        LOG.error("logstreamer listener activation failed: " + msg);
                     }
                 } else {
                     onMessageCallback.onMessage(msg);

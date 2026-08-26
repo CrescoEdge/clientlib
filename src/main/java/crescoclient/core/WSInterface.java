@@ -262,6 +262,13 @@ public class WSInterface {
         @Override public void onError(Throwable cause) { wsCallback.onError(cause); }
         @Override public void onMessage(WsConn sess, String msg) { wsCallback.onMessage(sess, msg); }
         @Override public void onMessage(byte[] b, int offset, int length) { wsCallback.onMessage(b, offset, length); }
-        @Override public void onClose(int statusCode, String reason) { wsCallback.onClose(statusCode, reason); }
+        @Override public void onClose(int statusCode, String reason) {
+            // without this, a dropped socket left isActive true, connected() kept reporting
+            // healthy, and the owners' reconnect monitors never fired - the client silently
+            // dropped everything from then on
+            isActive.set(false);
+            inConnect.set(false);
+            wsCallback.onClose(statusCode, reason);
+        }
     }
 }

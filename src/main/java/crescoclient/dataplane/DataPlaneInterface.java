@@ -19,6 +19,11 @@ public class DataPlaneInterface {
 
     private boolean isActive = false;
     private int messageCount = 0;
+    // true from each (re)connect until the server's status frame arrives: the FIRST frame of
+    // EVERY session is the handshake response, not stream data. Gating on messageCount==0 was a
+    // one-shot: after a reconnect the new session's status frame leaked to the consumer as data
+    // and the stream could never re-activate.
+    private volatile boolean handshakePending = true;
     // client-side counters exposed via get_metrics() (parity with the Python dataplane)
     private long messagesSent = 0;
     private long bytesReceived = 0;
@@ -218,6 +223,8 @@ public class DataPlaneInterface {
         @Override
         public void onConnect(WsConn sess) {
             LOG.debug("WSLogStreamerCallback query: {}", wsConfig.get("stream_query"));
+            handshakePending = true;   // re-arm for this session's status frame
+            isActive = false;
             sess.sendText(wsConfig.get("stream_query"));
         }
 
@@ -229,10 +236,13 @@ public class DataPlaneInterface {
         @Override
         public void onMessage(WsConn sess, String msg) {
             try {
-                if(messageCount == 0) {
+                if(handshakePending) {
+                    handshakePending = false;
                     Map<String, String> statusMap = gson.fromJson(msg, type);
                     if(statusMap.get("status_code").equals("10")) {
                         isActive = true;
+                    } else {
+                        LOG.error("dataplane listener activation failed: " + msg);
                     }
                 } else {
                     onMessageCallback.onMessage(msg);
