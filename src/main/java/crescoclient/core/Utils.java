@@ -1,10 +1,10 @@
 package crescoclient.core;
 
+import io.cresco.library.crypto.CrescoCrypto;
+
 import java.io.FileInputStream;
-import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.jar.Attributes;
@@ -47,46 +47,17 @@ public class Utils {
 
     }
 
+    /**
+     * Content hash via the shared library crypto facade (SHA-256, FIPS-approved). Retains the
+     * {@code getMD5} name and the {@code "md5"} jar_info key as the fabric-wide compatibility alias;
+     * the value is now SHA-256 and matches what the server computes (same facade).
+     */
     public String getMD5(String jarLocation) {
-        String hashString = null;
-
         try {
-            InputStream inputStream = new FileInputStream(jarLocation);
-
-            if(inputStream != null) {
-
-                MessageDigest digest = MessageDigest.getInstance("MD5");
-
-                //Create byte array to read data in chunks
-                byte[] byteArray = new byte[1024];
-                int bytesCount = 0;
-
-                //Read file data and update in message digest
-                while ((bytesCount = inputStream.read(byteArray)) != -1) {
-                    digest.update(byteArray, 0, bytesCount);
-                }
-                ;
-
-                //close the stream; We don't need it now.
-                inputStream.close();
-
-                //Get the hash's bytes
-                byte[] bytes = digest.digest();
-
-                //This bytes[] has bytes in decimal format;
-                //Convert it to hexadecimal format
-                StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < bytes.length; i++) {
-                    sb.append(Integer.toString((bytes[i] & 0xff) + 0x100, 16).substring(1));
-                }
-
-                hashString = sb.toString();
-            }
-
+            return CrescoCrypto.contentHashHex(jarLocation);
         } catch (Exception ex) {
             ex.printStackTrace();
+            return null;
         }
-        //return complete hash
-        return hashString;
     }
 }
