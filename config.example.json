@@ -1,0 +1,25 @@
+{
+  "host": "localhost",
+  "port": "8282",
+  "service_key": "",
+  "example": "stunnel",
+  "dataplane_query": "region_id IS NOT NULL AND agent_id IS NOT NULL",
+  "sTunnel": {
+    "plugin_jar": "",
+    "remove_on_exit": true,
+    "echo_test": false,
+    "tunnels": [
+      {
+        "stunnel_id": "example-tunnel",
+        "src_region": "",
+        "src_agent": "",
+        "src_port": "5202",
+        "dst_region": "",
+        "dst_agent": "",
+        "dst_host": "localhost",
+        "dst_port": "5201",
+        "buffer_size": "65536"
+      }
+    ]
+  }
+}

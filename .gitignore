@@ -1,2 +1,4 @@
 # Project exclude paths
 /target/
+# local launcher config (holds a service key)
+config.json

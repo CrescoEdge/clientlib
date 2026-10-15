@@ -77,11 +77,11 @@ public class MsgEventInterface {
                 LOG.warn("MsgEvent recv() called with no prior send() on this thread");
                 return null;
             }
-            String responce = queue.poll(rpcTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
-            if (responce == null) {
+            String response = queue.poll(rpcTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
+            if (response == null) {
                 LOG.warn("MsgEvent recv() timed out after " + rpcTimeoutSeconds + "s");
             }
-            return responce;
+            return response;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return null;

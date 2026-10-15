@@ -30,7 +30,7 @@ public class Messaging {
 
 
     public Map<String,String> global_controller_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
             Map<String,String> message_info = new HashMap<>();
             message_info.put("message_type","global_controller_msgevent");
@@ -47,17 +47,17 @@ public class Messaging {
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
-                responce = gson.fromJson(json_incoming,maptype);
+                response = gson.fromJson(json_incoming,maptype);
             }
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public Map<String,String> regional_controller_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
             Map<String,String> message_info = new HashMap<>();
             message_info.put("message_type","regional_controller_msgevent");
@@ -74,17 +74,17 @@ public class Messaging {
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
-                responce = gson.fromJson(json_incoming,maptype);
+                response = gson.fromJson(json_incoming,maptype);
             }
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public Map<String,String> global_agent_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload, String dst_region, String dst_agent) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
             Map<String,String> message_info = new HashMap<>();
             message_info.put("message_type","global_agent_msgevent");
@@ -103,17 +103,17 @@ public class Messaging {
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
-                responce = gson.fromJson(json_incoming,maptype);
+                response = gson.fromJson(json_incoming,maptype);
             }
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public Map<String,String> regional_agent_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload, String dst_agent) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
             Map<String,String> message_info = new HashMap<>();
             message_info.put("message_type","regional_agent_msgevent");
@@ -131,17 +131,17 @@ public class Messaging {
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
-                responce = gson.fromJson(json_incoming,maptype);
+                response = gson.fromJson(json_incoming,maptype);
             }
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public Map<String,String> agent_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
             Map<String,String> message_info = new HashMap<>();
             message_info.put("message_type","agent_msgevent");
@@ -158,17 +158,17 @@ public class Messaging {
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
-                responce = gson.fromJson(json_incoming,maptype);
+                response = gson.fromJson(json_incoming,maptype);
             }
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public Map<String,String> global_plugin_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload, String dst_region, String dst_agent, String dst_plugin) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
             Map<String,String> message_info = new HashMap<>();
             message_info.put("message_type","global_plugin_msgevent");
@@ -188,17 +188,17 @@ public class Messaging {
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
-                responce = gson.fromJson(json_incoming,maptype);
+                response = gson.fromJson(json_incoming,maptype);
             }
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public Map<String,String> regional_plugin_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload, String dst_agent, String dst_plugin) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
             Map<String,String> message_info = new HashMap<>();
             message_info.put("message_type","regional_plugin_msgevent");
@@ -217,17 +217,17 @@ public class Messaging {
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
-                responce = gson.fromJson(json_incoming,maptype);
+                response = gson.fromJson(json_incoming,maptype);
             }
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public Map<String,String> plugin_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload, String dst_plugin) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
             Map<String,String> message_info = new HashMap<>();
             message_info.put("message_type","plugin_msgevent");
@@ -245,13 +245,13 @@ public class Messaging {
 
             if(is_rpc) {
                 String json_incoming = ws_interface.recv();
-                responce = gson.fromJson(json_incoming,maptype);
+                response = gson.fromJson(json_incoming,maptype);
             }
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public String getCompressedParam(String inputString) {

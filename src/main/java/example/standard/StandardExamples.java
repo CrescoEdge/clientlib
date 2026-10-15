@@ -16,13 +16,24 @@ import java.util.Map;
  * Every example here has a byte-for-byte counterpart in the Python client
  * (pycrescolib: examples/standard_examples.py) with the same function name,
  * the same step-by-step structure, and the same narrative comments. Only the
- * language syntax differs. Edit HOST/PORT/SERVICE_KEY, then run one example.
+ * language syntax differs. (example_messaging and example_stunnel are Java-first; their pycrescolib
+ * counterparts use the same calls: messaging.global_controller_msgevent and the stunnel submodule.)
+ *
+ * Connection settings come from the environment (CRESCO_HOST, CRESCO_PORT, CRESCO_SERVICE_KEY), falling
+ * back to 127.0.0.1:8282. Run one example by name, e.g.
+ *   java -cp target/clientlib-1.3-SNAPSHOT.jar example.standard.StandardExamples connect
+ *   java -cp ... example.standard.StandardExamples stunnel global-region global-controller 5202 localhost 5201
  */
 public class StandardExamples {
 
-    static final String HOST = "127.0.0.1";
-    static final int PORT = 8282;
-    static final String SERVICE_KEY = "a-service-key";
+    static final String HOST = env("CRESCO_HOST", "127.0.0.1");
+    static final int PORT = Integer.parseInt(env("CRESCO_PORT", "8282"));
+    static final String SERVICE_KEY = env("CRESCO_SERVICE_KEY", "a-service-key");
+
+    static String env(String name, String dflt) {
+        String v = System.getenv(name);
+        return (v == null || v.isEmpty()) ? dflt : v;
+    }
 
     /** Create a connected client, or null if the connection failed. */
     static CrescoClient new_client() throws Exception {
@@ -209,8 +220,68 @@ public class StandardExamples {
         client.close();
     }
 
+    /** Send raw MsgEvents: one to the global controller, one to an agent (via the global controller). */
+    static void example_messaging(String dst_region, String dst_agent) throws Exception {
+        CrescoClient client = new_client();
+        if (client == null) {
+            return;
+        }
+
+        // 1. RPC to the global controller: the payload's "action" selects the controller action.
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("action", "listregions");
+        Map<String, String> reply = client.messaging.global_controller_msgevent(true, "EXEC", payload);
+        // Large values come back gzip+base64 compressed; decode with getCompressedParam.
+        System.out.println("regions: " + client.messaging.getCompressedParam(reply.get("regionslist")));
+
+        // 2. RPC to an agent's controller, routed through the global controller (getagentinfo is a CONFIG action).
+        Map<String, Object> agent_payload = new HashMap<>();
+        agent_payload.put("action", "getagentinfo");
+        System.out.println("agent info: " + client.messaging.global_agent_msgevent(true, "CONFIG", agent_payload, dst_region, dst_agent));
+
+        // 3. Disconnect.
+        client.close();
+    }
+
+    /** Load the stunnel plugin, create a tunnel, inspect it, then remove it. No CADL involved. */
+    static void example_stunnel(String region, String agent, String src_port, String dst_host, String dst_port) throws Exception {
+        CrescoClient client = new_client();
+        if (client == null) {
+            return;
+        }
+
+        // 1. Make sure the stunnel plugin runs on the agent (loads the copy embedded in the agent if needed).
+        System.out.println("stunnel plugin: " + client.stunnel.deploy_plugin(region, agent));
+
+        // 2. Create a tunnel: listen on agent:src_port, forward to dst_host:dst_port (single-node here;
+        //    use a different dst region/agent to cross the mesh).
+        Map<String, String> config = client.stunnel.create_tunnel("example-tunnel",
+                region, agent, src_port, region, agent, dst_host, dst_port, "65536");
+        System.out.println("created: " + config);
+
+        // 3. Inspect: status, list, persisted config.
+        System.out.println("status : " + client.stunnel.get_tunnel_status(region, agent, "example-tunnel"));
+        System.out.println("list   : " + client.stunnel.get_tunnel_list(region, agent));
+        System.out.println("config : " + client.stunnel.get_tunnel_config(region, agent, "example-tunnel"));
+
+        // 4. Remove both ends and disconnect.
+        System.out.println("removed: " + client.stunnel.remove_tunnel("example-tunnel", region, agent, region, agent));
+        client.close();
+    }
+
     public static void main(String[] args) throws Exception {
-        // Run the connect example by default; call the others with your own region/agent/jar/stream.
-        example_connect();
+        // Run the connect example by default; pass an example name (and its arguments) to run another.
+        String which = args.length > 0 ? args[0] : "connect";
+        switch (which) {
+            case "connect": example_connect(); break;
+            case "pipeline": example_pipeline(); break;
+            case "plugin_lifecycle": example_plugin_lifecycle(args[1], args[2], args[3]); break;
+            case "dataplane": example_dataplane(args[1]); break;
+            case "logstreamer": example_logstreamer(args[1], args[2]); break;
+            case "admin": example_admin(args[1], args[2]); break;
+            case "messaging": example_messaging(args[1], args[2]); break;
+            case "stunnel": example_stunnel(args[1], args[2], args[3], args[4], args[5]); break;
+            default: System.out.println("unknown example: " + which);
+        }
     }
 }

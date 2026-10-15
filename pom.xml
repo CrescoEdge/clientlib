@@ -134,12 +134,14 @@
                 <configuration>
                     <source>${jdk}</source>
                     <target>${jdk}</target>
-                    <!-- Legacy standalone demos under example/ use the removed Jetty 9 HTTP
-                         client API (org.eclipse.jetty.client.api/util). They are not part of
-                         the client library (crescoclient) and are excluded from the build.
-                         Current perf harnesses live in run/tests/java. -->
+                    <!-- Legacy standalone demos (TestUtils, filerepo/) use the removed Jetty 9 HTTP
+                         client API (org.eclipse.jetty.client.api/util) and are excluded from the
+                         build. The documented examples (example/standard, example/stunnel,
+                         example/messaging, example.Launcher) compile against the library so they
+                         stay runnable. Current perf harnesses live in run/tests/java. -->
                     <excludes>
-                        <exclude>example/**</exclude>
+                        <exclude>example/TestUtils.java</exclude>
+                        <exclude>example/filerepo/**</exclude>
                     </excludes>
                 </configuration>
             </plugin>

@@ -461,14 +461,14 @@ public class TestUtils {
     //Map<String, String> addi = client.globalcontroller.get_pipeline_export(pipeline_id);
     //System.out.println(client.messaging.getCompressedParam(addi.get("gpipeline")));
 
-    //Map<String,String> responce = client.agents.get_agent_log(dst_region, dst_agent);
-    //String info = new String(client.messaging.getCompressedDataParam(responce.get("log")));
+    //Map<String,String> response = client.agents.get_agent_log(dst_region, dst_agent);
+    //String info = new String(client.messaging.getCompressedDataParam(response.get("log")));
     //Map<String,List<Map<String,String>>> regionList = client.globalcontroller.get_region_list();
     //System.out.println(regionList);
-    //Map<String,String> responce = client.agents.get_agent_log(dst_region, dst_agent);
-    //List<Map<String,String>> responce = client.globalcontroller.get_plugin_list(dst_region, dst_agent);
-    //Map<String,List<Map<String,String>>> responce = client.globalcontroller.get_plugin_repo_list();
-    //System.out.println(responce);
+    //Map<String,String> response = client.agents.get_agent_log(dst_region, dst_agent);
+    //List<Map<String,String>> response = client.globalcontroller.get_plugin_list(dst_region, dst_agent);
+    //Map<String,List<Map<String,String>>> response = client.globalcontroller.get_plugin_repo_list();
+    //System.out.println(response);
 
     //System.exit(0);
 
@@ -480,9 +480,9 @@ public class TestUtils {
             message_payload.put("action", "listensrc");
             message_payload.put("action_stunnel_listen_port", "9000");
             message_payload.put("action_stunnel_id", tunnelId);
-            Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+            Map<String, String> response = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
 
-            System.out.println(responce);
+            System.out.println(response);
 
             message_payload.clear();
             message_payload.put("action", "listendst");
@@ -490,9 +490,9 @@ public class TestUtils {
             message_payload.put("action_stunnel_dst_host", "128.163.189.58");
             message_payload.put("action_stunnel_dst_port", "80");
 
-            responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+            response = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
 
-            System.out.println(responce);
+            System.out.println(response);
 
              */
 
@@ -503,8 +503,8 @@ public class TestUtils {
                 Map<String, Object> message_payload = new HashMap();
                 message_payload.put("action", "test");
                 message_payload.put("action_stunnel_id", tunnelId);
-                Map<String, String> responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
-                //System.out.println(responce);
+                Map<String, String> response = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+                //System.out.println(response);
                 Thread.sleep(5000);
             }
 
@@ -515,9 +515,9 @@ public class TestUtils {
     //message_payload.put("action", "listendst");
     //message_payload.put("action_stunnel_id", "t0");
     //message_payload.put("action_stunnel_listen_port", "9000");
-    //responce = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
+    //response = client.messaging.global_plugin_msgevent(true, message_event_type, message_payload, srcRegionId, srcAgentId, srcPluginId);
 
-    //System.out.println(responce);
+    //System.out.println(response);
 
     //client.close();
 

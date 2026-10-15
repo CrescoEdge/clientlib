@@ -59,7 +59,7 @@ public class Agents {
     }
 
     public Map<String,String> cepadd(String input_stream, String input_stream_desc, String output_stream, String output_stream_desc, String query, String dst_region, String dst_agent){
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
 
             Map<String,Object> cepparams  = new HashMap<>();
@@ -77,16 +77,16 @@ public class Agents {
             // "configparams" key silently delivered null. Caught by the conformance suite.
             message_payload.put("cepparams",messaging.setCompressedParam(json_cepparams));
 
-            responce = messaging.global_agent_msgevent(true,message_event_type,message_payload,dst_region,dst_agent);
+            response = messaging.global_agent_msgevent(true,message_event_type,message_payload,dst_region,dst_agent);
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return  responce;
+        return  response;
     }
 
     public Map<String,String> remove_plugin_agent(String dst_region, String dst_agent, String plugin_id){
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
 
             String message_event_type = "CONFIG";
@@ -94,16 +94,16 @@ public class Agents {
             message_payload.put("action","pluginremove");
             message_payload.put("pluginid",plugin_id);
 
-            responce = messaging.global_agent_msgevent(true,message_event_type,message_payload,dst_region,dst_agent);
+            response = messaging.global_agent_msgevent(true,message_event_type,message_payload,dst_region,dst_agent);
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return  responce;
+        return  response;
     }
 
     public Map<String,String> add_plugin_agent(String dst_region, String dst_agent, Map<String,String> configparams, Map<String,String> edges){
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
 
             String message_event_type = "CONFIG";
@@ -116,16 +116,16 @@ public class Agents {
                 message_payload.put("edges",messaging.setCompressedParam(json_edgeparams));
             }
 
-            responce = messaging.global_agent_msgevent(true,message_event_type,message_payload,dst_region,dst_agent);
+            response = messaging.global_agent_msgevent(true,message_event_type,message_payload,dst_region,dst_agent);
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return  responce;
+        return  response;
     }
 
     public Map<String,String> repo_pull_plugin_agent (String dst_region, String dst_agent, String jar_file_path) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
 
             Path jar_file = Paths.get(jar_file_path);
@@ -138,7 +138,7 @@ public class Agents {
                 String json_configparams = gson.toJson(configparams);
                 message_payload.put("configparams",messaging.setCompressedParam(json_configparams));
 
-                responce = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
+                response = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
 
             } else {
                 System.out.println("upload_jar_info: file does not exist: " + jar_file_path);
@@ -148,11 +148,11 @@ public class Agents {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public Map<String,String> upload_plugin_agent(String dst_region, String dst_agent, String jar_file_path) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
 
             Path jar_file = Paths.get(jar_file_path);
@@ -169,7 +169,7 @@ public class Agents {
                 // pluginupload is an AgentExecutor action: route to the target agent, not the global
                 // controller. The old global_controller route ignored dst_region/dst_agent (never
                 // reached the agent). Caught by the conformance suite vs the Python client.
-                responce = messaging.global_agent_msgevent(true,message_event_type,message_payload,dst_region,dst_agent);
+                response = messaging.global_agent_msgevent(true,message_event_type,message_payload,dst_region,dst_agent);
 
             } else {
                 System.out.println("upload_jar_info: file does not exist: " + jar_file_path);
@@ -179,7 +179,7 @@ public class Agents {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     public void update_plugin_agent(String dst_region, String dst_agent, String jar_file_path) {
@@ -208,19 +208,19 @@ public class Agents {
     }
 
     public Map<String,String> get_broadcast_discovery(String dst_region, String dst_agent) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
 
             String message_event_type = "EXEC";
             Map<String,Object> message_payload = new HashMap<>();
             message_payload.put("action","getbroadcastdiscovery");
 
-            responce = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
+            response = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     /**
@@ -256,19 +256,19 @@ public class Agents {
      * @return Plugin status information
      */
     public Map<String,String> status_plugin_agent(String dst_region, String dst_agent, String plugin_id) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
             String message_event_type = "CONFIG";
             Map<String,Object> message_payload = new HashMap<>();
             message_payload.put("action","pluginstatus");
             message_payload.put("pluginid",plugin_id);
 
-            responce = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
+            response = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     /**
@@ -279,18 +279,18 @@ public class Agents {
      * @return Agent information
      */
     public Map<String,String> get_agent_info(String dst_region, String dst_agent) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
             String message_event_type = "CONFIG";
             Map<String,Object> message_payload = new HashMap<>();
             message_payload.put("action","getagentinfo");
 
-            responce = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
+            response = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
     /**
@@ -301,7 +301,7 @@ public class Agents {
      * @return Agent logs
      */
     public Map<String,String> get_agent_log(String dst_region, String dst_agent) {
-        Map<String,String> responce = null;
+        Map<String,String> response = null;
         try {
 
             String message_event_type = "EXEC";
@@ -309,13 +309,13 @@ public class Agents {
             message_payload.put("action","getlog");
             message_payload.put("action_inmessage","true");
 
-            responce = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
+            response = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
 
 
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return responce;
+        return response;
     }
 
 }
