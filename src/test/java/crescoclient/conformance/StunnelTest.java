@@ -77,6 +77,14 @@ public class StunnelTest {
         return reply(Map.of("pluginslist", messaging.setCompressedParam(GSON.toJson(list))));
     }
 
+    /** The agent's own pluginlist reply (rows carry plugin_id / pluginname). */
+    private String agentPluginsReply(String pluginId) {
+        List<Map<String, String>> rows = new ArrayList<>();
+        rows.add(Map.of("pluginname", "io.cresco.example", "plugin_id", "plugin-other"));
+        if (pluginId != null) rows.add(Map.of("pluginname", Stunnel.STUNNEL_PLUGIN_NAME, "plugin_id", pluginId));
+        return reply(Map.of("status_code", "10", "plugin_list", messaging.setCompressedParam(GSON.toJson(rows))));
+    }
+
     private void assertPluginRoute(JsonObject m, String type, String action, String region, String agent, String plugin) {
         assertEquals("global_plugin_msgevent", info(m, "message_type"));
         assertEquals(type, info(m, "message_event_type"));
@@ -261,9 +269,13 @@ public class StunnelTest {
     @Test
     void deploy_plugin_adds_embedded_jar_when_missing() {
         ws.replies.add(pluginsReply(null));
+        ws.replies.add(agentPluginsReply(null));
         ws.replies.add(reply(Map.of("status_code", "10", "pluginid", "plugin-new")));
         assertEquals("plugin-new", stunnel.deploy_plugin("R", "A"));
-        JsonObject add = sent(1);
+        JsonObject confirm = sent(1);     // "not loaded" confirmed with the agent before adding
+        assertEquals("global_agent_msgevent", info(confirm, "message_type"));
+        assertEquals("pluginlist", payload(confirm, "action"));
+        JsonObject add = sent(2);
         assertEquals("global_agent_msgevent", info(add, "message_type"));
         assertEquals("CONFIG", info(add, "message_event_type"));
         assertEquals("R", info(add, "dst_region"));

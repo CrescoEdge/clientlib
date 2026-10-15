@@ -40,19 +40,14 @@ public class GlobalController {
      *
      * @param pipelineName the {@code pipeline_name} given in the CADL
      * @return the pipeline id ({@code resource-...}), or null if no pipeline has that name
+     * @throws CrescoQueryException if the pipeline list could not be read (null always means "no such pipeline")
      */
     public String get_pipeline_id_by_name(String pipelineName) {
-
         String pipelineId = null;
-        try {
-            List<Map<String, String>> pipelineList = get_pipeline_list();
-            for (Map<String, String> pipeline : pipelineList) {
-                if (pipeline.get("pipeline_name").equals(pipelineName)) {
-                    pipelineId = pipeline.get("pipeline_id");
-                }
+        for (Map<String, String> pipeline : get_pipeline_list()) {
+            if (pipelineName != null && pipelineName.equals(pipeline.get("pipeline_name"))) {
+                pipelineId = pipeline.get("pipeline_id");
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
         }
         return pipelineId;
     }
@@ -60,25 +55,20 @@ public class GlobalController {
     /**
      * List the pipelines known to the global controller (EXEC {@code getgpipelinestatus}).
      *
-     * @return one map per pipeline ({@code pipeline_id}, {@code pipeline_name}, {@code status_code}, ...), or null on failure
+     * @return one map per pipeline ({@code pipeline_id}, {@code pipeline_name}, {@code status_code}, ...);
+     *         empty only when the global answered "no pipelines"
+     * @throws CrescoQueryException if the list could not be read (no reply, error reply, no list)
      */
     public List<Map<String,String>> get_pipeline_list(){
-        List<Map<String,String>> response = null;
-        try {
-
-            String message_event_type = "EXEC";
-            Map<String,Object> message_payload = new HashMap<>();
-            message_payload.put("action","getgpipelinestatus");
-
-            Map<String,String> reply = messaging.global_controller_msgevent(true,message_event_type,message_payload);
-            String pluginlistStr = messaging.getCompressedParam(reply.get("pipelineinfo"));
-            Map<String,List<Map<String,String>>> pluginlist = messaging.getMapListMapFromString(pluginlistStr);
-            response = pluginlist.get("pipelines");
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        return  response;
+        Map<String,Object> message_payload = new HashMap<>();
+        message_payload.put("action","getgpipelinestatus");
+        Map<String,String> reply = messaging.global_controller_msgevent(true,"EXEC",message_payload);
+        String what = "get_pipeline_list";
+        Map<String,List<Map<String,String>>> pipelines = CrescoQueryException.requireDecoded(
+                messaging.getMapListMapFromString(messaging.getCompressedParam(
+                        CrescoQueryException.requireField(reply, "pipelineinfo", what))), what);
+        List<Map<String,String>> response = pipelines.get("pipelines");
+        return response != null ? response : new java.util.ArrayList<>();
     }
 
     /**
@@ -132,27 +122,19 @@ public class GlobalController {
      * List the agents in the mesh (EXEC {@code listagents}).
      *
      * @param dst_region a region name to list only that region's agents, or null for all agents
-     * @return {@code {"agents": [ {agent_id, region_id, status_desc, plugins, environment, location, ...} ]}}, or null on failure
+     * @return {@code {"agents": [ {agent_id, region_id, status_desc, plugins, environment, location, ...} ]}}
+     * @throws CrescoQueryException if the list could not be read (no reply, error reply, no list)
      */
     public Map<String,List<Map<String,String>>> get_agent_list(String dst_region) {
-        Map<String,List<Map<String,String>>> agentlist = null;
-        try {
-            String message_event_type = "EXEC";
-            Map<String,Object> message_payload = new HashMap<>();
-            message_payload.put("action","listagents");
-            if(dst_region != null) {
-                message_payload.put("action_region",dst_region);
-            }
-
-            Map<String,String> reply = messaging.global_controller_msgevent(true,message_event_type,message_payload);
-            String agentlistStr = messaging.getCompressedParam(reply.get("agentslist"));
-            agentlist = messaging.getMapListMapFromString(agentlistStr);
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        Map<String,Object> message_payload = new HashMap<>();
+        message_payload.put("action","listagents");
+        if(dst_region != null) {
+            message_payload.put("action_region",dst_region);
         }
-
-        return agentlist;
+        Map<String,String> reply = messaging.global_controller_msgevent(true,"EXEC",message_payload);
+        String what = "get_agent_list";
+        return CrescoQueryException.requireDecoded(messaging.getMapListMapFromString(messaging.getCompressedParam(
+                CrescoQueryException.requireField(reply, "agentslist", what))), what);
     }
 
     /**
@@ -161,28 +143,29 @@ public class GlobalController {
      *
      * @param dst_region region name of the agent
      * @param dst_agent  agent name
-     * @return one map per plugin ({@code pluginname} = bundle symbolic name, {@code name} = plugin id, ...), or null on failure
+     * @return one map per plugin ({@code pluginname} = bundle symbolic name, {@code name} = plugin id, ...);
+     *         empty only when the global answered "no plugins"
+     * @throws CrescoQueryException if the inventory could not be read: no reply (e.g. right after a global
+     *         restart), an error reply (wsapi {@code status} 504), or a reply without the list. Never treat it as
+     *         "not loaded". (Before this exception existed the method returned null on failure.)
      */
     public List<Map<String,String>> list_plugins(String dst_region, String dst_agent) {
         // Reliable global-side plugin listing for an agent (global_controller_msgevent
         // 'listplugins'), unlike Agents.list_plugin_agent which addresses the agent
         // directly and can time out on edge nodes. Each record has 'pluginname' and
         // 'name' (the plugin_id).
-        try {
-            String message_event_type = "EXEC";
-            Map<String,Object> message_payload = new HashMap<>();
-            message_payload.put("action","listplugins");
-            message_payload.put("action_region", dst_region);
-            message_payload.put("action_agent", dst_agent);
+        Map<String,Object> message_payload = new HashMap<>();
+        message_payload.put("action","listplugins");
+        message_payload.put("action_region", dst_region);
+        message_payload.put("action_agent", dst_agent);
 
-            Map<String,String> reply = messaging.global_controller_msgevent(true,message_event_type,message_payload);
-            String pluginListStr = messaging.getCompressedParam(reply.get("pluginslist"));
-            Map<String,List<Map<String,String>>> pluginlist = messaging.getMapListMapFromString(pluginListStr);
-            return pluginlist.get("plugins");
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        return null;
+        Map<String,String> reply = messaging.global_controller_msgevent(true,"EXEC",message_payload);
+        String what = "list_plugins " + dst_region + "/" + dst_agent;
+        Map<String,List<Map<String,String>>> pluginlist = CrescoQueryException.requireDecoded(
+                messaging.getMapListMapFromString(messaging.getCompressedParam(
+                        CrescoQueryException.requireField(reply, "pluginslist", what))), what);
+        List<Map<String,String>> plugins = pluginlist.get("plugins");
+        return plugins != null ? plugins : new java.util.ArrayList<>();
     }
 
     /**
@@ -191,17 +174,16 @@ public class GlobalController {
      * @param dst_region region name of the agent
      * @param dst_agent  agent name
      * @param pluginname bundle symbolic name, e.g. {@code io.cresco.stunnel}
-     * @return the plugin id, or null if no such plugin is loaded there
+     * @return the plugin id, or null if the global answered and no such plugin is loaded there
+     * @throws CrescoQueryException if the inventory could not be read (see {@link #list_plugins}); null therefore
+     *         always means "asked: not loaded"
      */
     public String find_plugin(String dst_region, String dst_agent, String pluginname) {
         // Resolve a plugin's id by name on an agent, via the global controller (reliable;
-        // does not depend on the per-agent RPC path). Returns the plugin_id, or null.
-        List<Map<String,String>> plugins = list_plugins(dst_region, dst_agent);
-        if(plugins != null) {
-            for(Map<String,String> p : plugins) {
-                if(pluginname.equals(p.get("pluginname"))) {
-                    return p.get("name");
-                }
+        // does not depend on the per-agent RPC path).
+        for(Map<String,String> p : list_plugins(dst_region, dst_agent)) {
+            if(pluginname.equals(p.get("pluginname"))) {
+                return p.get("name");
             }
         }
         return null;
@@ -443,24 +425,16 @@ public class GlobalController {
     /**
      * List the regions in the mesh (EXEC {@code listregions}).
      *
-     * @return {@code {"regions": [ {name, type, agents} ]}}, or null on failure
+     * @return {@code {"regions": [ {name, type, agents} ]}}
+     * @throws CrescoQueryException if the list could not be read (no reply, error reply, no list)
      */
     public Map<String,List<Map<String,String>>> get_region_list() {
-        Map<String,List<Map<String,String>>> regionlist = null;
-        try {
-            String message_event_type = "EXEC";
-            Map<String,Object> message_payload = new HashMap<>();
-            message_payload.put("action","listregions");
-
-            Map<String,String> reply = messaging.global_controller_msgevent(true,message_event_type,message_payload);
-            String agentlistStr = messaging.getCompressedParam(reply.get("regionslist"));
-            regionlist = messaging.getMapListMapFromString(agentlistStr);
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-        return regionlist;
+        Map<String,Object> message_payload = new HashMap<>();
+        message_payload.put("action","listregions");
+        Map<String,String> reply = messaging.global_controller_msgevent(true,"EXEC",message_payload);
+        String what = "get_region_list";
+        return CrescoQueryException.requireDecoded(messaging.getMapListMapFromString(messaging.getCompressedParam(
+                CrescoQueryException.requireField(reply, "regionslist", what))), what);
     }
 
 

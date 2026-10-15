@@ -322,23 +322,37 @@ public class Agents {
      *
      * @param dst_region Destination region
      * @param dst_agent Destination agent
-     * @return List of plugins
+     * @return List of plugins (each with {@code plugin_id} and {@code pluginname}); empty only when the agent
+     *         answered "no plugins"
+     * @throws CrescoQueryException if the list could not be read: no reply, an error reply ({@code status_code}
+     *         9, wsapi {@code status} 504) or no list. Never treat it as "none loaded".
      */
     public java.util.List<Map<String,String>> list_plugin_agent(String dst_region, String dst_agent) {
-        java.util.List<Map<String,String>> pluginlist = null;
-        try {
-            String message_event_type = "CONFIG";
-            Map<String,Object> message_payload = new HashMap<>();
-            message_payload.put("action","pluginlist");
+        Map<String,Object> message_payload = new HashMap<>();
+        message_payload.put("action","pluginlist");
+        Map<String,String> reply = messaging.global_agent_msgevent(true,"CONFIG",message_payload, dst_region, dst_agent);
+        String what = "list_plugin_agent " + dst_region + "/" + dst_agent;
+        return CrescoQueryException.requireDecoded(messaging.getListMapFromString(messaging.getCompressedParam(
+                CrescoQueryException.requireField(reply, "plugin_list", what))), what);
+    }
 
-            Map<String,String> reply = messaging.global_agent_msgevent(true,message_event_type,message_payload, dst_region, dst_agent);
-            String pluginlistStr = messaging.getCompressedParam(reply.get("plugin_list"));
-            pluginlist = messaging.getListMapFromString(pluginlistStr);
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
+    /**
+     * Resolve a plugin's id by plugin name, asking the agent itself ({@code pluginlist}). Authoritative for what
+     * runs on that agent, even while the global controller's view lags (e.g. right after a global restart).
+     *
+     * @param dst_region region name of the agent
+     * @param dst_agent  agent name
+     * @param pluginname bundle symbolic name, e.g. {@code io.cresco.stunnel}
+     * @return the plugin id, or null if the agent answered and no such plugin is loaded
+     * @throws CrescoQueryException if the agent's plugin list could not be read (see {@link #list_plugin_agent})
+     */
+    public String find_plugin(String dst_region, String dst_agent, String pluginname) {
+        for (Map<String,String> p : list_plugin_agent(dst_region, dst_agent)) {
+            if (pluginname.equals(p.get("pluginname"))) {
+                return p.get("plugin_id");
+            }
         }
-        return pluginlist;
+        return null;
     }
 
     /**

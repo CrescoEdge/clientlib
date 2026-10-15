@@ -23,7 +23,8 @@ import java.util.UUID;
  *
  * <p>Plugin ids are resolved by name through {@link GlobalController#find_plugin} (the reliable,
  * global-side path), so callers address agents by region/agent name only. Every method that takes a
- * trailing {@code plugin_id} argument accepts {@code null} to auto-resolve it.
+ * trailing {@code plugin_id} argument accepts {@code null} to auto-resolve it; when that lookup itself
+ * fails the method throws {@link CrescoQueryException} rather than reporting "plugin not loaded".
  *
  * <p>Wire actions used (all defined in the stunnel plugin's {@code PluginExecutor}):
  * <ul>
@@ -102,7 +103,8 @@ public class Stunnel {
      *
      * @param region region name of the agent
      * @param agent  agent name
-     * @return the live plugin_id (e.g. {@code plugin-1a2b...}), or {@code null} if the plugin is not loaded
+     * @return the live plugin_id (e.g. {@code plugin-1a2b...}), or {@code null} if the global answered "not loaded"
+     * @throws CrescoQueryException if the global's plugin inventory could not be read
      */
     public String find_plugin(String region, String agent) {
         return globalcontroller.find_plugin(region, agent, STUNNEL_PLUGIN_NAME);
@@ -114,7 +116,8 @@ public class Stunnel {
      *
      * @param region region name of the agent
      * @param agent  agent name
-     * @return the plugin_id of the (existing or newly loaded) stunnel plugin, or {@code null} on failure
+     * @return the plugin_id of the (existing or newly loaded) stunnel plugin, or {@code null} if the add failed
+     * @throws CrescoQueryException if the plugin inventory could not be read (nothing was added)
      */
     public String deploy_plugin(String region, String agent) {
         return deploy_plugin(region, agent, null);
@@ -127,15 +130,27 @@ public class Stunnel {
      *
      * @param region        region name of the agent
      * @param agent         agent name
+     * <p>"Not loaded" is confirmed with the agent itself ({@code pluginlist}) before anything is added: the
+     * global's registration state can lag the agent briefly (e.g. right after a global restart, until the agent
+     * re-sends its plugin state), and that must not start a second copy. If either inventory read fails the
+     * call throws and adds nothing (before {@link CrescoQueryException} existed a failed read looked like
+     * "not loaded" and started a duplicate).
+     *
      * @param jar_file_path local path of a stunnel plugin jar to upload, or {@code null} for the embedded copy
-     * @return the plugin_id of the (existing or newly loaded) stunnel plugin, or {@code null} on failure
+     * @return the plugin_id of the (existing or newly loaded) stunnel plugin, or {@code null} if the upload/add failed
+     * @throws CrescoQueryException if the plugin inventory could not be read (nothing was added; retry later)
      */
     public String deploy_plugin(String region, String agent, String jar_file_path) {
+        String existing = find_plugin(region, agent);
+        if (existing != null) {
+            return existing;
+        }
+        // the global says "not loaded": confirm with the agent (authoritative for what runs there)
+        existing = agents.find_plugin(region, agent, STUNNEL_PLUGIN_NAME);
+        if (existing != null) {
+            return existing;
+        }
         try {
-            String existing = find_plugin(region, agent);
-            if (existing != null) {
-                return existing;
-            }
             Map<String, String> configparams = new HashMap<>();
             configparams.put("pluginname", STUNNEL_PLUGIN_NAME);
             if (jar_file_path != null) {
@@ -156,6 +171,8 @@ public class Stunnel {
             }
             Map<String, String> added = agents.add_plugin_agent(region, agent, configparams, null);
             return added != null ? added.get("pluginid") : null;
+        } catch (CrescoQueryException ex) {
+            throw ex;
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -246,6 +263,8 @@ public class Stunnel {
                 return gson.fromJson(messaging.getCompressedParam(reply.get("stunnel_config")), MAP_TYPE);
             }
             return reply;
+        } catch (CrescoQueryException ex) {
+            throw ex;
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -266,7 +285,8 @@ public class Stunnel {
      * @param agent     agent name
      * @param plugin_id stunnel plugin id, or {@code null} to resolve by name
      * @return one {@code {stunnel_id, status}} map per tunnel (status as in {@link #get_tunnel_status});
-     *         empty if the plugin is not loaded or the call failed
+     *         empty if the plugin is not loaded or the listtunnels call failed
+     * @throws CrescoQueryException if the plugin id had to be resolved and the inventory could not be read
      */
     public List<Map<String,String>> get_tunnel_list(String region, String agent, String plugin_id) {
         try {
@@ -278,6 +298,8 @@ public class Stunnel {
             if (reply != null && reply.get("tunnels") != null) {
                 return gson.fromJson(reply.get("tunnels"), LIST_MAP_TYPE);
             }
+        } catch (CrescoQueryException ex) {
+            throw ex;
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -395,6 +417,8 @@ public class Stunnel {
             Map<String,Object> p = new HashMap<>(tuning);
             p.put("action", "nettuning");
             return messaging.global_plugin_msgevent(true, "CONFIG", p, region, agent, plugin_id);
+        } catch (CrescoQueryException ex) {
+            throw ex;
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -484,6 +508,8 @@ public class Stunnel {
             p.put("action", action);
             if (stunnel_id != null) p.put("action_stunnel_id", stunnel_id);
             return messaging.global_plugin_msgevent(true, type, p, region, agent, plugin_id);
+        } catch (CrescoQueryException ex) {
+            throw ex;
         } catch (Exception ex) {
             ex.printStackTrace();
         }

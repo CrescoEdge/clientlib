@@ -155,6 +155,14 @@ javadoc -d target/apidocs -sourcepath src/main/java -subpackages crescoclient -c
   live `plugin_id` for a plugin loaded on an agent, so you never parse logs to address a plugin.
 - **Streams are separate sockets.** `get_dataplane(...)` and `get_logstreamer(...)` open their own WebSocket
   connections, are tracked by name on the client, and auto-reconnect if the socket drops.
+- **"Not found" vs "couldn't ask".** Inventory queries (`globalcontroller.list_plugins` / `find_plugin` /
+  `get_agent_list` / `get_region_list` / `get_pipeline_list` / `get_pipeline_id_by_name`,
+  `agents.list_plugin_agent` / `find_plugin`) return an empty result / `null` **only** when the fabric answered
+  "none". When the query fails -- no reply within the RPC timeout (e.g. right after a global restart), an error
+  reply (wsapi `status` 504, an agent's `status_code` 9) or a reply without the list -- they throw the unchecked
+  `crescoclient.core.CrescoQueryException`. Earlier builds returned `null` on failure, which made check-then-act
+  code (`if (find_plugin(...) == null) add`) start duplicate plugins. Code that only displays the result can catch
+  it; code that acts on "absent" must not. Same contract as pycrescolib 1.3.2 (`CrescoQueryError`).
 - **RPC vs fire-and-forget.** Messaging calls take an `is_rpc` flag: when true the call blocks for the reply,
   when false it is sent without waiting.
 
@@ -208,7 +216,8 @@ Submodule handles: `messaging`, `agents`, `admin`, `api`, `globalcontroller`, `s
 | `get_controller_status(dst_region, dst_agent)` | Controller status. |
 | `add_plugin_agent(dst_region, dst_agent, configparams, edges=None)` | Add a plugin to an agent. |
 | `remove_plugin_agent(dst_region, dst_agent, plugin_id)` | Remove a plugin from an agent. |
-| `list_plugin_agent(dst_region, dst_agent)` | List plugins on an agent. |
+| `list_plugin_agent(dst_region, dst_agent)` | List plugins on an agent (asks the agent itself; throws `CrescoQueryException` if it cannot be read). |
+| `find_plugin(dst_region, dst_agent, pluginname)` | Resolve a plugin's `plugin_id` by name from the agent's own list (or `null` if not loaded). |
 | `status_plugin_agent(dst_region, dst_agent, plugin_id)` | Get plugin status. |
 | `get_agent_info(dst_region, dst_agent)` | Get agent information. |
 | `get_agent_log(dst_region, dst_agent)` | Get agent logs. |
@@ -252,11 +261,12 @@ Build and manage secure TCP tunnels through the [io.cresco.stunnel](https://gith
 plugin, with no CADL pipeline: a listener on `src_port` at the source agent forwards every accepted connection to
 `dst_host:dst_port` reachable from the destination agent, with tunnel data riding the Cresco data plane. Plugin ids
 are auto-resolved by name via `find_plugin`; every method that takes a trailing `plugin_id` also accepts `null`.
+When that lookup itself fails the method throws `CrescoQueryException` instead of reporting "not loaded".
 
 | Method | Plugin action | Description |
 |---|---|---|
 | `find_plugin(region, agent)` | — | Resolve the `io.cresco.stunnel` plugin_id loaded on an agent (or `null`). |
-| `deploy_plugin(region, agent[, jar_file_path])` | `pluginadd` (+`pluginupload`) | Java: ensure the plugin runs on an agent (the copy embedded in the agent, or an uploaded jar); returns its plugin_id. |
+| `deploy_plugin(region, agent[, jar_file_path])` | `pluginadd` (+`pluginupload`) | Ensure the plugin runs on an agent (the copy embedded in the agent, or an uploaded jar); returns its plugin_id. "Not loaded" is confirmed with the agent itself (`pluginlist`) before adding, since the global's view can lag after a restart; throws `CrescoQueryException` and adds nothing when either inventory read fails. |
 | `create_tunnel(stunnel_id, src_region, src_agent, src_port, dst_region, dst_agent, dst_host, dst_port, buffer_size[, src_plugin_id, dst_plugin_id[, watchdog_timeout, performance_report_rate]])` | CONFIG `configsrctunnel` | Create a tunnel. Returns the resolved tunnel config on success, the plugin reply (`status`, `status_desc`) on failure. |
 | `get_tunnel_list(region, agent)` | EXEC `listtunnels` | `[{stunnel_id, status}]` for the tunnels on an agent (empty if none / plugin missing). |
 | `get_tunnel_status(region, agent, stunnel_id)` | EXEC `gettunnelstatus` | `ACTIVE`, `RECOVERING`, `DOWN` or `UNKNOWN` (`null` if not configured there). |

@@ -223,7 +223,11 @@ public class ConformanceTest {
 
         return inv.entrySet().stream().map(entry -> dynamicTest(entry.getKey(), () -> {
             Clients c = new Clients();
-            entry.getValue().accept(c);
+            try {
+                entry.getValue().accept(c);
+            } catch (crescoclient.core.CrescoQueryException expected) {
+                // the canned "{}" reply is not a listing; the request was still sent (asserted below)
+            }
             assertTrue(c.ws.sent != null, entry.getKey() + ": no message was sent");
 
             JsonObject actual = normalize(c.ws.sent, c.messaging);
