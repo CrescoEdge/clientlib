@@ -15,6 +15,29 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * A dataplane stream: a WebSocket to wsapi's {@code /api/dataplane} for publishing and receiving messages on
+ * the Cresco data plane (the broker topic plugins use for bulk data). Get one with
+ * {@link crescoclient.CrescoClient#get_dataplane(String, crescoclient.core.OnMessageCallback)}.
+ *
+ * <p>The first frame is the stream handshake, either
+ * <ul>
+ *   <li>a JSON stream config {@code {"ident_key":"stream_name","ident_id":"demo","io_type_key":"type","input_id":"in"}}:
+ *       the stream receives messages whose {@code ident_key} property equals {@code ident_id}, and messages it sends
+ *       are tagged with those properties (plus {@code io_type_key=input_id}); or</li>
+ *   <li>a selector such as {@code stream_name='demo'} ({@code ident = 'value'} terms joined by AND, at least one
+ *       equality): receive-only.</li>
+ * </ul>
+ * wsapi refuses selectors that could match other streams (OR, IS NULL, ...) and closes the socket.
+ *
+ * <pre>{@code
+ * String stream = "{\"ident_key\":\"stream_name\",\"ident_id\":\"demo\",\"io_type_key\":\"type\",\"input_id\":\"in\"}";
+ * DataPlaneInterface dp = client.get_dataplane(stream, callback);
+ * dp.connect();
+ * dp.send("hello");                                  // every stream subscribed to stream_name='demo' receives it
+ * client.close_dataplane(stream);
+ * }</pre>
+ */
 public class DataPlaneInterface {
 
     private boolean isActive = false;
@@ -45,6 +68,15 @@ public class DataPlaneInterface {
     private Thread reconnectMonitor;
     private static final long RECONNECT_CHECK_MS = 5000;
 
+    /**
+     * Create a dataplane stream that prints what it receives. Prefer {@link crescoclient.CrescoClient#get_dataplane}.
+     *
+     * @param host              wsapi host
+     * @param port              wsapi port
+     * @param serviceKey        wsapi service key
+     * @param streamQuery       the stream handshake (see the class description)
+     * @param connectionTimeout connect timeout in seconds
+     */
     public DataPlaneInterface(String host, int port, String serviceKey, String streamQuery, int connectionTimeout) {
         this.connectionTimeout = connectionTimeout;
 
@@ -60,6 +92,16 @@ public class DataPlaneInterface {
         gson = new Gson();
     }
 
+    /**
+     * Create a dataplane stream with a message callback. Prefer {@link crescoclient.CrescoClient#get_dataplane}.
+     *
+     * @param host        wsapi host
+     * @param port        wsapi port
+     * @param serviceKey  wsapi service key
+     * @param streamQuery the stream handshake (see the class description)
+     * @param onMessageCallback receives text messages ({@code onMessage(String)}) and binary messages
+     *                           ({@code onMessage(byte[], int, int)})
+     */
     public DataPlaneInterface(String host, int port, String serviceKey, String streamQuery, OnMessageCallback onMessageCallback) {
 
         wsConfig = new HashMap<>();
@@ -77,6 +119,11 @@ public class DataPlaneInterface {
         gson = new Gson();
     }
 
+    /**
+     * Publish a text message on this stream (tagged with the stream's ident and input id).
+     *
+     * @param message the text
+     */
     public void send(String message) {
 
         try {
@@ -92,6 +139,11 @@ public class DataPlaneInterface {
         }
     }
 
+    /**
+     * Publish a binary message on this stream.
+     *
+     * @param byteBuffer the bytes (position to limit)
+     */
     public void send(ByteBuffer byteBuffer) {
 
         try {
@@ -112,10 +164,20 @@ public class DataPlaneInterface {
         }
     }
 
+    /**
+     * Publish a binary message on this stream; same as {@link #send(ByteBuffer)}.
+     *
+     * @param byteBuffer the bytes
+     */
     public void send_binary(ByteBuffer byteBuffer) {
         send(byteBuffer);
     }
 
+    /**
+     * Read a file and publish its contents as one binary message.
+     *
+     * @param file_path path of the file
+     */
     public void send_binary_file(String file_path) {
         try {
             byte[] data = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(file_path));
@@ -126,6 +188,13 @@ public class DataPlaneInterface {
         }
     }
 
+    /**
+     * Send one fragment of a binary message; the receiver gets a single message once a fragment is sent with
+     * {@code complete} true.
+     *
+     * @param byteBuffer the fragment
+     * @param complete   true for the last fragment
+     */
     public void send_partial(ByteBuffer byteBuffer, boolean complete) {
 
         try {
@@ -142,16 +211,29 @@ public class DataPlaneInterface {
         }
     }
 
+    /**
+     * Send a {@code region,agent,Trace,default} control line on the stream (kept for parity with the
+     * logstreamer and the Python client).
+     *
+     * @param dst_region region name
+     * @param dst_agent  agent name
+     */
     public void update_config(String dst_region, String dst_agent) {
         send(dst_region + ',' + dst_agent + ",Trace,default");
     }
 
+    /**
+     * Open the stream (send the handshake) and start the reconnect monitor, which re-opens the socket if it drops.
+     */
     public void start() {
         closing = false;
         wsInterface.start(connectionTimeout);
         startReconnectMonitor();
     }
 
+    /**
+     * Open the stream; same as {@link #start()}.
+     */
     public void connect() {
         start();
     }
@@ -186,10 +268,20 @@ public class DataPlaneInterface {
         reconnectMonitor.start();
     }
 
+    /**
+     * Whether the stream's socket is connected.
+     *
+     * @return true if connected
+     */
     public boolean connected() {
         return wsInterface.connected();
     }
 
+    /**
+     * Whether the stream's socket is connected (same as {@link #connected()}).
+     *
+     * @return true if connected
+     */
     public boolean is_active() {
         return wsInterface.connected();
     }
@@ -211,6 +303,9 @@ public class DataPlaneInterface {
         return m;
     }
 
+    /**
+     * Stop the reconnect monitor and close the stream.
+     */
     public void close() {
         closing = true;
         if (reconnectMonitor != null) {

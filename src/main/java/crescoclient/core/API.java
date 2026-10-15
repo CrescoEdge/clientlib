@@ -7,6 +7,11 @@ import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Identity of the wsapi endpoint the client is connected to and of the mesh's global controller
+ * ({@code client.api}). The region/agent/plugin names are reported by wsapi when the control
+ * connection is established; the global controller identity is fetched on first use and cached.
+ */
 public class API {
 
     private Gson gson;
@@ -16,6 +21,12 @@ public class API {
     private String globalRegion;
     private String globalAgent;
 
+    /**
+     * Create the API submodule. {@link crescoclient.CrescoClient} builds this for you as {@code client.api}.
+     *
+     * @param msgEventInterface the control-channel transport (identity of the wsapi endpoint)
+     * @param messaging         the client's messaging submodule
+     */
     public API(MsgEventInterface msgEventInterface, Messaging messaging) {
         gson = new Gson();
         this.msgEventInterface = msgEventInterface;

@@ -13,6 +13,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
+/**
+ * The control-channel transport: an authenticated WebSocket to wsapi's {@code /api/apisocket} that carries
+ * MsgEvents as JSON and returns RPC replies. {@link crescoclient.CrescoClient} owns one; use the submodules
+ * ({@link crescoclient.core.Messaging} and the others) rather than this class directly.
+ */
 public class MsgEventInterface {
 
     private Map<String,String> wsConfig;
@@ -28,6 +33,13 @@ public class MsgEventInterface {
     private final ThreadLocal<LinkedBlockingQueue<String>> currentReplyQueue = new ThreadLocal<>();
     private int rpcTimeoutSeconds = 30;
 
+    /**
+     * Create the control-channel transport for a wsapi endpoint ({@code /api/apisocket}).
+     *
+     * @param host       wsapi host
+     * @param port       wsapi port
+     * @param serviceKey wsapi service key
+     */
     public MsgEventInterface(String host, int port, String serviceKey) {
 
         wsConfig = new HashMap<>();
@@ -40,16 +52,31 @@ public class MsgEventInterface {
 
     }
 
+    /**
+     * @return region of the agent hosting the wsapi endpoint (known once connected)
+     */
     public String getRegionName() {
         return wsInterface.getRegionName();
     }
+    /**
+     * @return name of the agent hosting the wsapi endpoint (known once connected)
+     */
     public String getAgentName() {
         return wsInterface.getAgentName();
     }
+    /**
+     * @return plugin id of the wsapi plugin (known once connected)
+     */
     public String getPluginName() {
         return wsInterface.getPluginName();
     }
 
+    /**
+     * Send one JSON message ({@code message_info} + {@code message_payload}) on the control connection.
+     *
+     * @param isRPC   true if a reply is expected (clears any stale reply for this connection first)
+     * @param message the JSON message
+     */
     public void send(boolean isRPC, String message) {
 
         try {
@@ -70,6 +97,11 @@ public class MsgEventInterface {
         }
     }
 
+    /**
+     * Wait for the reply to the last RPC this thread sent (up to 30 s).
+     *
+     * @return the reply JSON, or null on timeout
+     */
     public String recv() {
         try {
             LinkedBlockingQueue<String> queue = currentReplyQueue.get();
@@ -88,15 +120,26 @@ public class MsgEventInterface {
         }
     }
 
+    /**
+     * Open the control connection.
+     *
+     * @param timeout connect timeout in seconds
+     */
     public void start(int timeout) {
         wsInterface.start(timeout);
         //wsInterface.connect();
     }
 
+    /**
+     * @return true if the control connection is up
+     */
     public boolean connected() {
         return wsInterface.connected();
     }
 
+    /**
+     * Close the control connection.
+     */
     public void close() {
         wsInterface.close();
     }

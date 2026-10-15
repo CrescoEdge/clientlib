@@ -11,6 +11,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Java client for a Cresco mesh, connected through the wsapi plugin of any agent.
+ *
+ * <p>One client holds one authenticated control connection ({@code wss://host:port/api/apisocket}, service key
+ * in the {@code cresco_service_key} header) and exposes the submodules as public fields:
+ * <ul>
+ *   <li>{@link #api} - identity of the wsapi endpoint and of the global controller</li>
+ *   <li>{@link #globalcontroller} - pipelines, region/agent inventory, plugin lookup and repository, inventories</li>
+ *   <li>{@link #agents} - per-agent controller status, plugin lifecycle, info, logs, CEP</li>
+ *   <li>{@link #admin} - stop/restart controller or framework, kill the JVM</li>
+ *   <li>{@link #messaging} - raw MsgEvents to any controller, agent or plugin</li>
+ *   <li>{@link #stunnel} - TCP tunnels through the io.cresco.stunnel plugin</li>
+ * </ul>
+ * Data-plane and log streams are separate WebSockets created with {@link #get_dataplane} and
+ * {@link #get_logstreamer}; the client tracks them by name and {@link #close()} closes them all.
+ *
+ * <pre>{@code
+ * CrescoClient client = new CrescoClient("localhost", 8282, serviceKey);
+ * if (client.connect()) {
+ *     System.out.println(client.globalcontroller.get_agent_list(null));
+ *     client.close();
+ * }
+ * }</pre>
+ *
+ * <p>Method names are snake_case and match the Python client (pycrescolib) one to one.
+ */
 public class CrescoClient {
 
     private String host;
@@ -69,6 +95,11 @@ public class CrescoClient {
         this.stunnel = new Stunnel(messaging, globalcontroller);
     }
 
+    /**
+     * Connect to the wsapi endpoint, blocking until connected or the 5 s connect timeout elapses.
+     *
+     * @return true if connected
+     */
     public boolean connect() throws InterruptedException {
         return connect(true);
     }
@@ -136,10 +167,21 @@ public class CrescoClient {
         return verify_ssl;
     }
 
+    /**
+     * Get (and register under an auto-generated name) a logstreamer that prints what it receives.
+     *
+     * @return the logstreamer; call {@code connect()} on it
+     */
     public LogStreamerInterface get_logstreamer() {
         return get_logstreamer(null, null);
     }
 
+    /**
+     * Get (and register under an auto-generated name) a logstreamer with a message callback.
+     *
+     * @param onMessageCallback receives the log lines
+     * @return the logstreamer; call {@code connect()} on it
+     */
     public LogStreamerInterface get_logstreamer(OnMessageCallback onMessageCallback) {
         return get_logstreamer(null, onMessageCallback);
     }
@@ -186,6 +228,12 @@ public class CrescoClient {
         return new ArrayList<>(logstreamers.keySet());
     }
 
+    /**
+     * Get (and register) a dataplane for the given stream handshake that prints what it receives.
+     *
+     * @param stream_name the stream handshake (JSON stream config or selector; see {@link DataPlaneInterface}), also the registry key
+     * @return the dataplane; call {@code connect()} on it
+     */
     public DataPlaneInterface get_dataplane(String stream_name) {
         return get_dataplane(stream_name, null);
     }

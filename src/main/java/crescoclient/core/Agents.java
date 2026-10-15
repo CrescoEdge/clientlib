@@ -8,18 +8,35 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Agent-level operations ({@code client.agents}): controller status, plugin lifecycle on one agent
+ * (add/remove/list/status/upload), agent info and logs, and CEP queries. Every call is a MsgEvent to the
+ * target agent's controller, routed through the global controller ({@code global_agent_msgevent}).
+ */
 public class Agents {
 
     private Gson gson;
     private Utils utils;
     private Messaging messaging;
 
+    /**
+     * Create the agents submodule. {@link crescoclient.CrescoClient} builds this for you as {@code client.agents}.
+     *
+     * @param messaging the client's messaging submodule
+     */
     public Agents(Messaging messaging) {
         utils = new Utils();
         gson = new Gson();
         this.messaging = messaging;
     }
 
+    /**
+     * Whether the controller on an agent is active (EXEC {@code iscontrolleractive}).
+     *
+     * @param dst_region region name of the target agent
+     * @param dst_agent  name of the target agent
+     * @return true if the agent answered that its controller is active; false otherwise (including no reply)
+     */
     public boolean is_controller_active(String dst_region, String dst_agent) {
         boolean isActive = false;
         try {
@@ -39,6 +56,13 @@ public class Agents {
         return isActive;
     }
 
+    /**
+     * Controller status of an agent (EXEC {@code getcontrollerstatus}).
+     *
+     * @param dst_region region name of the target agent
+     * @param dst_agent  name of the target agent
+     * @return the controller status string, or null if the agent did not answer
+     */
     public String get_controller_status(String dst_region, String dst_agent) {
         String controllerStatus = null;
         try {
@@ -58,6 +82,19 @@ public class Agents {
         return controllerStatus;
     }
 
+    /**
+     * Add a complex-event-processing (Siddhi) query on an agent (CONFIG {@code cepadd}). Events arriving on
+     * {@code input_stream} are evaluated by {@code query} and results are published on {@code output_stream}.
+     *
+     * @param input_stream       name of the input stream
+     * @param input_stream_desc  schema of the input stream
+     * @param output_stream      name of the output stream
+     * @param output_stream_desc schema of the output stream
+     * @param query              the CEP query
+     * @param dst_region region name of the target agent
+     * @param dst_agent  name of the target agent
+     * @return the agent's reply, or null on failure
+     */
     public Map<String,String> cepadd(String input_stream, String input_stream_desc, String output_stream, String output_stream_desc, String query, String dst_region, String dst_agent){
         Map<String,String> response = null;
         try {
@@ -85,6 +122,14 @@ public class Agents {
         return  response;
     }
 
+    /**
+     * Stop and remove a plugin from an agent (CONFIG {@code pluginremove}).
+     *
+     * @param dst_region region name of the target agent
+     * @param dst_agent  name of the target agent
+     * @param plugin_id  plugin id on that agent (from {@link #list_plugin_agent} or {@link GlobalController#find_plugin})
+     * @return the agent's reply, or null on failure
+     */
     public Map<String,String> remove_plugin_agent(String dst_region, String dst_agent, String plugin_id){
         Map<String,String> response = null;
         try {
@@ -102,6 +147,21 @@ public class Agents {
         return  response;
     }
 
+    /**
+     * Load and start a plugin on an agent without a CADL pipeline (CONFIG {@code pluginadd}).
+     *
+     * <p>{@code configparams} must contain {@code pluginname} (the bundle symbolic name) and identify the jar:
+     * {@code jarfile} as a path on the agent (e.g. the {@code jar_file_path} returned by {@link #upload_plugin_agent}) or
+     * the name of a jar embedded in the agent (e.g. {@code stunnel.jar}), optionally with {@code version} and
+     * {@code md5}; with only a name the agent looks in its local cache and then the plugin repositories. Any other
+     * keys become the plugin's configuration.
+     *
+     * @param dst_region region name of the target agent
+     * @param dst_agent  name of the target agent
+     * @param configparams plugin configuration (see above)
+     * @param edges        optional pipeline edges for the plugin, or null
+     * @return the reply: {@code pluginid} and {@code status_code} ("10" = running) on success, or null on failure
+     */
     public Map<String,String> add_plugin_agent(String dst_region, String dst_agent, Map<String,String> configparams, Map<String,String> edges){
         Map<String,String> response = null;
         try {
@@ -124,6 +184,16 @@ public class Agents {
         return  response;
     }
 
+    /**
+     * Ask an agent to pull a plugin into its local cache from the plugin repositories (CONFIG
+     * {@code pluginrepopull}). The plugin is identified by the name/version/hash read from the local jar's manifest;
+     * the jar itself is not sent.
+     *
+     * @param dst_region region name of the target agent
+     * @param dst_agent  name of the target agent
+     * @param jar_file_path local path of the plugin jar (used for its manifest and hash)
+     * @return the agent's reply, or null if the file does not exist or the call failed
+     */
     public Map<String,String> repo_pull_plugin_agent (String dst_region, String dst_agent, String jar_file_path) {
         Map<String,String> response = null;
         try {
@@ -151,6 +221,16 @@ public class Agents {
         return response;
     }
 
+    /**
+     * Upload a plugin jar to an agent's local plugin cache (CONFIG {@code pluginupload}). The jar is not started;
+     * follow with {@link #add_plugin_agent} using the returned {@code jar_file_path} as {@code jarfile}.
+     *
+     * @param dst_region region name of the target agent
+     * @param dst_agent  name of the target agent
+     * @param jar_file_path local path of the plugin jar
+     * @return the reply ({@code jar_file_path} on the agent, {@code is_updated}), or null if the file does not exist
+     *         or the call failed
+     */
     public Map<String,String> upload_plugin_agent(String dst_region, String dst_agent, String jar_file_path) {
         Map<String,String> response = null;
         try {
@@ -182,6 +262,13 @@ public class Agents {
         return response;
     }
 
+    /**
+     * Ask an agent to update its controller from a jar (CONFIG {@code controllerupdate}, fire-and-forget).
+     *
+     * @param dst_region region name of the target agent
+     * @param dst_agent  name of the target agent
+     * @param jar_file_path path of the controller jar, as the agent sees it
+     */
     public void update_plugin_agent(String dst_region, String dst_agent, String jar_file_path) {
         try {
 
@@ -207,6 +294,13 @@ public class Agents {
 
     }
 
+    /**
+     * Run a broadcast discovery from an agent and return what it found (EXEC {@code getbroadcastdiscovery}).
+     *
+     * @param dst_region region name of the target agent
+     * @param dst_agent  name of the target agent
+     * @return the agent's reply, or null on failure
+     */
     public Map<String,String> get_broadcast_discovery(String dst_region, String dst_agent) {
         Map<String,String> response = null;
         try {

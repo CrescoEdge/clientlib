@@ -14,6 +14,23 @@ import java.util.*;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+/**
+ * Raw MsgEvent messaging ({@code client.messaging}): the transport every other submodule is built on, plus
+ * the param encode/decode helpers.
+ *
+ * <p>A MsgEvent is a typed message ({@code EXEC}, {@code CONFIG}, ...) with string params; the {@code action}
+ * param selects the handler on the receiving controller or plugin. The eight routing methods differ only in
+ * the destination: the global or regional controller, an agent's controller, or a plugin on an agent. All take
+ * {@code (is_rpc, message_event_type, message_payload, ...)}; with {@code is_rpc} true the call blocks until the
+ * reply arrives (one outstanding RPC per control connection and thread) and returns the reply params.
+ *
+ * <pre>{@code
+ * Map<String, Object> payload = new HashMap<>();
+ * payload.put("action", "listregions");
+ * Map<String, String> reply = client.messaging.global_controller_msgevent(true, "EXEC", payload);
+ * String regionsJson = client.messaging.getCompressedParam(reply.get("regionslist"));
+ * }</pre>
+ */
 public class Messaging {
 
     private Gson gson;
@@ -23,12 +40,26 @@ public class Messaging {
 
     private Type listMapType = new TypeToken<List<Map<String, String>>>(){}.getType();
 
+    /**
+     * Create the messaging submodule. {@link crescoclient.CrescoClient} builds this for you as {@code client.messaging}.
+     *
+     * @param ws_interface the control-channel transport
+     */
     public Messaging(MsgEventInterface ws_interface) {
         this.ws_interface = ws_interface;
         gson = new Gson();
     }
 
 
+    /**
+     * Send a MsgEvent to the global controller.
+     *
+     * @param is_rpc             true to wait for the reply, false to send without waiting
+     * @param message_event_type MsgEvent type: {@code EXEC}, {@code CONFIG}, {@code INFO}, {@code WATCHDOG}, ...
+     * @param message_payload    MsgEvent params; {@code action} selects the handler on the receiver
+     * @return the reply params when {@code is_rpc}, else null. Null too if no reply arrived within the client's
+     *         30 s RPC timeout; when the fabric gives up first the reply carries {@code status} "504".
+     */
     public Map<String,String> global_controller_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload) {
         Map<String,String> response = null;
         try {
@@ -56,6 +87,15 @@ public class Messaging {
         return response;
     }
 
+    /**
+     * Send a MsgEvent to the regional controller of the region the wsapi endpoint is in.
+     *
+     * @param is_rpc             true to wait for the reply, false to send without waiting
+     * @param message_event_type MsgEvent type: {@code EXEC}, {@code CONFIG}, {@code INFO}, {@code WATCHDOG}, ...
+     * @param message_payload    MsgEvent params; {@code action} selects the handler on the receiver
+     * @return the reply params when {@code is_rpc}, else null. Null too if no reply arrived within the client's
+     *         30 s RPC timeout; when the fabric gives up first the reply carries {@code status} "504".
+     */
     public Map<String,String> regional_controller_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload) {
         Map<String,String> response = null;
         try {
@@ -83,6 +123,17 @@ public class Messaging {
         return response;
     }
 
+    /**
+     * Send a MsgEvent to any agent's controller, routed through the global controller.
+     *
+     * @param is_rpc             true to wait for the reply, false to send without waiting
+     * @param message_event_type MsgEvent type: {@code EXEC}, {@code CONFIG}, {@code INFO}, {@code WATCHDOG}, ...
+     * @param message_payload    MsgEvent params; {@code action} selects the handler on the receiver
+     * @param dst_region         region of the target agent
+     * @param dst_agent          target agent name
+     * @return the reply params when {@code is_rpc}, else null. Null too if no reply arrived within the client's
+     *         30 s RPC timeout; when the fabric gives up first the reply carries {@code status} "504".
+     */
     public Map<String,String> global_agent_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload, String dst_region, String dst_agent) {
         Map<String,String> response = null;
         try {
@@ -112,6 +163,16 @@ public class Messaging {
         return response;
     }
 
+    /**
+     * Send a MsgEvent to an agent in the wsapi endpoint's own region, routed through its regional controller.
+     *
+     * @param is_rpc             true to wait for the reply, false to send without waiting
+     * @param message_event_type MsgEvent type: {@code EXEC}, {@code CONFIG}, {@code INFO}, {@code WATCHDOG}, ...
+     * @param message_payload    MsgEvent params; {@code action} selects the handler on the receiver
+     * @param dst_agent          target agent name
+     * @return the reply params when {@code is_rpc}, else null. Null too if no reply arrived within the client's
+     *         30 s RPC timeout; when the fabric gives up first the reply carries {@code status} "504".
+     */
     public Map<String,String> regional_agent_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload, String dst_agent) {
         Map<String,String> response = null;
         try {
@@ -140,6 +201,15 @@ public class Messaging {
         return response;
     }
 
+    /**
+     * Send a MsgEvent to the controller of the agent hosting the wsapi endpoint.
+     *
+     * @param is_rpc             true to wait for the reply, false to send without waiting
+     * @param message_event_type MsgEvent type: {@code EXEC}, {@code CONFIG}, {@code INFO}, {@code WATCHDOG}, ...
+     * @param message_payload    MsgEvent params; {@code action} selects the handler on the receiver
+     * @return the reply params when {@code is_rpc}, else null. Null too if no reply arrived within the client's
+     *         30 s RPC timeout; when the fabric gives up first the reply carries {@code status} "504".
+     */
     public Map<String,String> agent_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload) {
         Map<String,String> response = null;
         try {
@@ -167,6 +237,18 @@ public class Messaging {
         return response;
     }
 
+    /**
+     * Send a MsgEvent to a plugin on any agent, routed through the global controller.
+     *
+     * @param is_rpc             true to wait for the reply, false to send without waiting
+     * @param message_event_type MsgEvent type: {@code EXEC}, {@code CONFIG}, {@code INFO}, {@code WATCHDOG}, ...
+     * @param message_payload    MsgEvent params; {@code action} selects the handler on the receiver
+     * @param dst_region         region of the target agent
+     * @param dst_agent          target agent name
+     * @param dst_plugin         plugin id on that agent (see {@link GlobalController#find_plugin})
+     * @return the reply params when {@code is_rpc}, else null. Null too if no reply arrived within the client's
+     *         30 s RPC timeout; when the fabric gives up first the reply carries {@code status} "504".
+     */
     public Map<String,String> global_plugin_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload, String dst_region, String dst_agent, String dst_plugin) {
         Map<String,String> response = null;
         try {
@@ -197,6 +279,17 @@ public class Messaging {
         return response;
     }
 
+    /**
+     * Send a MsgEvent to a plugin on an agent in the wsapi endpoint's own region.
+     *
+     * @param is_rpc             true to wait for the reply, false to send without waiting
+     * @param message_event_type MsgEvent type: {@code EXEC}, {@code CONFIG}, {@code INFO}, {@code WATCHDOG}, ...
+     * @param message_payload    MsgEvent params; {@code action} selects the handler on the receiver
+     * @param dst_agent          target agent name
+     * @param dst_plugin         plugin id on that agent
+     * @return the reply params when {@code is_rpc}, else null. Null too if no reply arrived within the client's
+     *         30 s RPC timeout; when the fabric gives up first the reply carries {@code status} "504".
+     */
     public Map<String,String> regional_plugin_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload, String dst_agent, String dst_plugin) {
         Map<String,String> response = null;
         try {
@@ -226,6 +319,16 @@ public class Messaging {
         return response;
     }
 
+    /**
+     * Send a MsgEvent to a plugin on the agent hosting the wsapi endpoint.
+     *
+     * @param is_rpc             true to wait for the reply, false to send without waiting
+     * @param message_event_type MsgEvent type: {@code EXEC}, {@code CONFIG}, {@code INFO}, {@code WATCHDOG}, ...
+     * @param message_payload    MsgEvent params; {@code action} selects the handler on the receiver
+     * @param dst_plugin         plugin id on that agent
+     * @return the reply params when {@code is_rpc}, else null. Null too if no reply arrived within the client's
+     *         30 s RPC timeout; when the fabric gives up first the reply carries {@code status} "504".
+     */
     public Map<String,String> plugin_msgevent(boolean is_rpc, String message_event_type, Map<String,Object> message_payload, String dst_plugin) {
         Map<String,String> response = null;
         try {
@@ -254,6 +357,13 @@ public class Messaging {
         return response;
     }
 
+    /**
+     * Decode a compressed MsgEvent param (base64 of gzip of UTF-8 text). Large reply values (lists,
+     * pipelines, configs) arrive this way.
+     *
+     * @param inputString the base64 value
+     * @return the decoded text, or null if the input is null or not gzip data
+     */
     public String getCompressedParam(String inputString) {
         if (inputString == null)
             return null;
@@ -268,6 +378,12 @@ public class Messaging {
         }
     }
 
+    /**
+     * Decode a base64 binary param (no decompression).
+     *
+     * @param value the base64 value
+     * @return the bytes, or null
+     */
     public byte[] getDataParam(String value) {
         byte[] byteArray = null;
         try {
@@ -281,6 +397,12 @@ public class Messaging {
         return byteArray;
     }
 
+    /**
+     * Gunzip bytes.
+     *
+     * @param compressedData gzip data
+     * @return the decompressed bytes, or null on error
+     */
     public byte[] dataDecompress(byte[] compressedData) {
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(
                 compressedData);
@@ -303,24 +425,54 @@ public class Messaging {
         return null;
     }
 
+    /**
+     * Encode text as a compressed MsgEvent param (gzip, then base64); the inverse of {@link #getCompressedParam}.
+     *
+     * @param inputString the text (usually JSON)
+     * @return the base64 value
+     */
     public String setCompressedParam(String inputString) {
         return Base64.getEncoder().encodeToString(stringCompress(inputString));
     }
 
+    /**
+     * Encode bytes as a base64 MsgEvent param. Despite the name the bytes are not compressed (used for jar uploads).
+     *
+     * @param value the bytes
+     * @return the base64 value
+     */
     public String setCompressedDataParam(byte[] value) {
         return Base64.getEncoder().encodeToString(value);
     }
 
+    /**
+     * Decode a base64 param holding gzip data and gunzip it.
+     *
+     * @param value the base64 value
+     * @return the decompressed bytes, or null on error
+     */
     public byte[] getCompressedDataParam(String value) {
         return dataDecompress(getDataParam(value));
     }
 
+    /**
+     * Gzip a string's UTF-8 bytes.
+     *
+     * @param str the text
+     * @return the gzip bytes
+     */
     public byte[] stringCompress(String str) {
 
         byte[] dataToCompress = str.getBytes(StandardCharsets.UTF_8);
         return dataCompress(dataToCompress);
     }
 
+    /**
+     * Gzip bytes.
+     *
+     * @param dataToCompress the bytes
+     * @return the gzip bytes, or null on error
+     */
     public byte[] dataCompress(byte[] dataToCompress) {
 
         byte[] compressedData;
@@ -346,14 +498,32 @@ public class Messaging {
         return compressedData;
     }
 
+    /**
+     * Parse a JSON object of string values.
+     *
+     * @param mapString the JSON
+     * @return the map
+     */
     public Map<String,String> getMapFromString(String mapString) {
         return gson.fromJson(mapString,maptype);
     }
 
+    /**
+     * Parse JSON shaped like {@code {"key": [ {..}, {..} ]}} (the shape of most list replies).
+     *
+     * @param mapListMapString the JSON
+     * @return the map
+     */
     public Map<String,List<Map<String,String>>> getMapListMapFromString(String mapListMapString) {
         return gson.fromJson(mapListMapString,mapListMapType);
     }
 
+    /**
+     * Parse a JSON array of objects of string values.
+     *
+     * @param listMapString the JSON
+     * @return the list
+     */
     public List<Map<String,String>> getListMapFromString(String listMapString) {
         return gson.fromJson(listMapString,listMapType);
     }

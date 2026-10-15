@@ -60,7 +60,7 @@ public class Launcher {
                     break;
                 case "dataplane":
                     runDataplaneListener(client, setting(config, "dataplane_query", null,
-                            "region_id IS NOT NULL AND agent_id IS NOT NULL"));
+                            "stream_name='example'"));
                     break;
                 default:
                     System.out.println("Unknown example '" + example + "' (expected stunnel or dataplane)");

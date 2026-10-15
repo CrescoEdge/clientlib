@@ -1,12 +1,15 @@
 package crescoclient.conformance;
 
+import crescoclient.core.OnMessageCallback;
 import crescoclient.dataplane.DataPlaneInterface;
+import crescoclient.logstreamer.LogStreamerInterface;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
  * Local (non-wire) method tests (mirror pycrescolib tests/test_local_methods.py).
@@ -30,5 +33,17 @@ public class LocalMethodsTest {
         assertEquals(0, m.get("messages_received"));
         assertEquals(0L, m.get("bytes_received"));
         assertEquals(false, m.get("active"));
+    }
+
+    @Test
+    void logstreamer_keeps_caller_callback() throws Exception {
+        OnMessageCallback cb = new OnMessageCallback() {
+            public void onMessage(String msg) { }
+            public void onMessage(byte[] b, int offset, int length) { }
+        };
+        LogStreamerInterface ls = new LogStreamerInterface("localhost", 8282, "key", cb);
+        java.lang.reflect.Field f = LogStreamerInterface.class.getDeclaredField("onMessageCallback");
+        f.setAccessible(true);
+        assertSame(cb, f.get(ls));
     }
 }

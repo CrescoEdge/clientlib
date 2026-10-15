@@ -14,6 +14,11 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * A log stream: a WebSocket to wsapi's {@code /api/logstreamer} that delivers log lines from agents in the mesh.
+ * Get one with {@link crescoclient.CrescoClient#get_logstreamer(String, crescoclient.core.OnMessageCallback)},
+ * {@link #connect()} it, then choose what to stream with {@link #update_config} / {@link #update_config_class}.
+ */
 public class LogStreamerInterface {
 
     private boolean isActive = false;
@@ -38,6 +43,14 @@ public class LogStreamerInterface {
     private Thread reconnectMonitor;
     private static final long RECONNECT_CHECK_MS = 5000;
 
+    /**
+     * Create a log streamer that prints what it receives. Prefer {@link crescoclient.CrescoClient#get_logstreamer}.
+     *
+     * @param host              wsapi host
+     * @param port              wsapi port
+     * @param serviceKey        wsapi service key
+     * @param connectionTimeout connect timeout in seconds
+     */
     public LogStreamerInterface(String host, int port, String serviceKey, int connectionTimeout) {
         this.connectionTimeout = connectionTimeout;
         wsConfig = new HashMap<>();
@@ -51,6 +64,15 @@ public class LogStreamerInterface {
         gson = new Gson();
     }
 
+    /**
+     * Create a log streamer with a message callback. Prefer {@link crescoclient.CrescoClient#get_logstreamer}.
+     *
+     * @param host       wsapi host
+     * @param port       wsapi port
+     * @param serviceKey wsapi service key
+     * @param onMessageCallback receives text messages ({@code onMessage(String)}) and binary messages
+     *                           ({@code onMessage(byte[], int, int)})
+     */
     public LogStreamerInterface(String host, int port, String serviceKey, OnMessageCallback onMessageCallback) {
 
         wsConfig = new HashMap<>();
@@ -59,10 +81,17 @@ public class LogStreamerInterface {
         wsConfig.put("service_key", serviceKey);
         wsConfig.put("api_path","/api/logstreamer");
 
+        // was never assigned: every log line hit a NullPointerException instead of the caller's callback
+        this.onMessageCallback = onMessageCallback;
         wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
         gson = new Gson();
     }
 
+    /**
+     * Send a raw control line ({@code region,agent,level,baseclass}) on the log stream.
+     *
+     * @param message the line
+     */
     public void send(String message) {
 
         try {
@@ -72,20 +101,40 @@ public class LogStreamerInterface {
         }
     }
 
+    /**
+     * Stream an agent's logs at Trace level for all classes ({@code region,agent,Trace,default}).
+     *
+     * @param dst_region region of the agent
+     * @param dst_agent  agent name
+     */
     public void update_config(String dst_region, String dst_agent) {
         send(dst_region + ',' + dst_agent + ",Trace,default");
     }
 
+    /**
+     * Set the level streamed for one logger base class on an agent ({@code region,agent,level,baseclass}).
+     *
+     * @param dst_region region of the agent
+     * @param dst_agent  agent name
+     * @param loglevel   Trace, Debug, Info, Warn or Error
+     * @param baseclass  logger base class (package prefix), e.g. {@code io.cresco.agent}
+     */
     public void update_config_class(String dst_region, String dst_agent, String loglevel, String baseclass) {
         send(dst_region + ',' + dst_agent + ',' + loglevel + ',' + baseclass);
     }
 
+    /**
+     * Open the log stream and start the reconnect monitor.
+     */
     public void start() {
         closing = false;
         wsInterface.start(connectionTimeout);
         startReconnectMonitor();
     }
 
+    /**
+     * Open the log stream; same as {@link #start()}.
+     */
     public void connect() {
         start();
     }
@@ -120,14 +169,27 @@ public class LogStreamerInterface {
         reconnectMonitor.start();
     }
 
+    /**
+     * Whether the stream's socket is connected.
+     *
+     * @return true if connected
+     */
     public boolean connected() {
         return wsInterface.connected();
     }
 
+    /**
+     * Whether the stream's socket is connected (same as {@link #connected()}).
+     *
+     * @return true if connected
+     */
     public boolean is_active() {
         return wsInterface.connected();
     }
 
+    /**
+     * Stop the reconnect monitor and close the stream.
+     */
     public void close() {
         closing = true;
         if (reconnectMonitor != null) {

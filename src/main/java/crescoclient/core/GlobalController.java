@@ -12,18 +12,35 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Mesh-wide operations through the global controller ({@code client.globalcontroller}): CADL pipelines
+ * (submit, status, info, export, remove), the region/agent inventory, plugin lookup and the plugin
+ * repository, resource summaries, and the unified metric and capability inventories.
+ */
 public class GlobalController {
 
     private Gson gson;
     private Utils utils;
     private Messaging messaging;
 
+    /**
+     * Create the global-controller submodule. {@link crescoclient.CrescoClient} builds this for you as
+     * {@code client.globalcontroller}.
+     *
+     * @param messaging the client's messaging submodule
+     */
     public GlobalController(Messaging messaging) {
         gson = new Gson();
         this.messaging = messaging;
         utils = new Utils();
     }
 
+    /**
+     * Look up a pipeline id by its name.
+     *
+     * @param pipelineName the {@code pipeline_name} given in the CADL
+     * @return the pipeline id ({@code resource-...}), or null if no pipeline has that name
+     */
     public String get_pipeline_id_by_name(String pipelineName) {
 
         String pipelineId = null;
@@ -40,6 +57,11 @@ public class GlobalController {
         return pipelineId;
     }
 
+    /**
+     * List the pipelines known to the global controller (EXEC {@code getgpipelinestatus}).
+     *
+     * @return one map per pipeline ({@code pipeline_id}, {@code pipeline_name}, {@code status_code}, ...), or null on failure
+     */
     public List<Map<String,String>> get_pipeline_list(){
         List<Map<String,String>> response = null;
         try {
@@ -59,6 +81,13 @@ public class GlobalController {
         return  response;
     }
 
+    /**
+     * Get a pipeline's full description, including per-node placement (region/agent/plugin ids) and status
+     * (EXEC {@code getgpipeline}).
+     *
+     * @param pipeline_id the pipeline id
+     * @return the pipeline as a {@code gPayload} ({@code status_code}, {@code nodes}, {@code edges}), or null on failure
+     */
     public gPayload get_pipeline_info(String pipeline_id) {
         gPayload gpay = null;
         try {
@@ -78,6 +107,12 @@ public class GlobalController {
         return gpay;
     }
 
+    /**
+     * Get a pipeline's status code (10 = active; lower values while it is being scheduled).
+     *
+     * @param pipeline_id the pipeline id
+     * @return the status code, or -1 if the pipeline could not be read
+     */
     public int get_pipeline_status(String pipeline_id) {
         int status = -1;
         try {
@@ -93,6 +128,12 @@ public class GlobalController {
         return status;
     }
 
+    /**
+     * List the agents in the mesh (EXEC {@code listagents}).
+     *
+     * @param dst_region a region name to list only that region's agents, or null for all agents
+     * @return {@code {"agents": [ {agent_id, region_id, status_desc, plugins, environment, location, ...} ]}}, or null on failure
+     */
     public Map<String,List<Map<String,String>>> get_agent_list(String dst_region) {
         Map<String,List<Map<String,String>>> agentlist = null;
         try {
@@ -114,6 +155,14 @@ public class GlobalController {
         return agentlist;
     }
 
+    /**
+     * List the plugins loaded on an agent, as recorded by the global controller (EXEC {@code listplugins}).
+     * Unlike {@link Agents#list_plugin_agent} this does not need the agent itself to answer.
+     *
+     * @param dst_region region name of the agent
+     * @param dst_agent  agent name
+     * @return one map per plugin ({@code pluginname} = bundle symbolic name, {@code name} = plugin id, ...), or null on failure
+     */
     public List<Map<String,String>> list_plugins(String dst_region, String dst_agent) {
         // Reliable global-side plugin listing for an agent (global_controller_msgevent
         // 'listplugins'), unlike Agents.list_plugin_agent which addresses the agent
@@ -136,6 +185,14 @@ public class GlobalController {
         return null;
     }
 
+    /**
+     * Resolve the live plugin id of a plugin loaded on an agent, by plugin name.
+     *
+     * @param dst_region region name of the agent
+     * @param dst_agent  agent name
+     * @param pluginname bundle symbolic name, e.g. {@code io.cresco.stunnel}
+     * @return the plugin id, or null if no such plugin is loaded there
+     */
     public String find_plugin(String dst_region, String dst_agent, String pluginname) {
         // Resolve a plugin's id by name on an agent, via the global controller (reliable;
         // does not depend on the per-agent RPC path). Returns the plugin_id, or null.
@@ -150,6 +207,11 @@ public class GlobalController {
         return null;
     }
 
+    /**
+     * List the plugins available in the global plugin repository (EXEC {@code listpluginsrepo}).
+     *
+     * @return the decoded repository listing, or null on failure
+     */
     public Map<String,List<Map<String,String>>> get_plugin_repo_list() {
 
         Map<String,List<Map<String,String>>> pluginRepoList = null;
@@ -171,6 +233,14 @@ public class GlobalController {
 
 
 
+    /**
+     * Get an agent's resource summary (CPU, memory, disk, network) as collected by its sysinfo plugin
+     * (EXEC {@code resourceinfo}).
+     *
+     * @param dst_region region name of the agent
+     * @param dst_agent  agent name
+     * @return the decoded resource info, or null on failure
+     */
     public Map<String,List<Map<String,String>>> get_agent_resources(String dst_region, String dst_agent) {
         Map<String,List<Map<String,String>>> agentlist = null;
         try {
@@ -264,6 +334,12 @@ public class GlobalController {
         return get_capability_inventory("global", true, false);
     }
 
+    /**
+     * List the plugins held by the mesh's {@code io.cresco.repo} plugin (finds the repo plugin, then EXEC
+     * {@code repolist} to it).
+     *
+     * @return the decoded repo listing, or null if no repo plugin is loaded or the call failed
+     */
     public Map<String,List<Map<String,String>>> get_repo_plugins() {
         Map<String,List<Map<String,String>>> agentlist = null;
         try {
@@ -302,6 +378,14 @@ public class GlobalController {
         return agentlist;
     }
 
+    /**
+     * Upload a plugin jar to the global controller's plugin repository (CONFIG {@code savetorepo}), from where
+     * agents can pull it by name/version/hash (e.g. as a CADL node or via {@link Agents#add_plugin_agent}).
+     *
+     * @param jar_file_path local path of the plugin jar
+     * @return the reply (its compressed {@code configparams} describe the stored plugin), or null if the file does not
+     *         exist or the call failed
+     */
     public Map<String,String> upload_plugin_global(String jar_file_path) {
         Map<String,String> response = null;
         try {
@@ -330,6 +414,12 @@ public class GlobalController {
         return response;
     }
 
+    /**
+     * Get the aggregated resource summary of a region (EXEC {@code resourceinfo}).
+     *
+     * @param dst_region region name
+     * @return the decoded resource info, or null on failure
+     */
     public Map<String,List<Map<String,String>>> get_region_resources(String dst_region) {
 
         Map<String,List<Map<String,String>>> regionlist = null;
@@ -350,6 +440,11 @@ public class GlobalController {
         return regionlist;
     }
 
+    /**
+     * List the regions in the mesh (EXEC {@code listregions}).
+     *
+     * @return {@code {"regions": [ {name, type, agents} ]}}, or null on failure
+     */
     public Map<String,List<Map<String,String>>> get_region_list() {
         Map<String,List<Map<String,String>>> regionlist = null;
         try {
@@ -369,6 +464,14 @@ public class GlobalController {
     }
 
 
+    /**
+     * Submit a CADL pipeline (application) to the global controller for scheduling (CONFIG {@code gpipelinesubmit}).
+     *
+     * @param cadl     the pipeline: {@code pipeline_name}, {@code nodes} (each with {@code params} naming the plugin
+     *                  and optionally {@code location_region}/{@code location_agent}) and {@code edges}
+     * @param tenantId tenant id ("0" for the default tenant)
+     * @return the reply; {@code gpipeline_id} is the new pipeline id. Poll {@link #get_pipeline_status} for 10 (active).
+     */
     public Map<String, String> submit_pipeline(Map<String, Object> cadl, String tenantId) {
 
         Map<String, String> reply = null;
@@ -393,6 +496,14 @@ public class GlobalController {
         return reply;
     }
 
+    /**
+     * Submit a CADL pipeline given as a JSON string.
+     *
+     * @param json_cadl the CADL JSON
+     * @param tenantId  tenant id ("0" for the default tenant)
+     * @return the reply; {@code gpipeline_id} is the new pipeline id
+     * @see #submit_pipeline(Map, String)
+     */
     public Map<String, String> submit_pipeline(String json_cadl, String tenantId) {
 
         Map<String, String> reply = null;
@@ -415,6 +526,13 @@ public class GlobalController {
         return reply;
     }
 
+    /**
+     * Get the assignment of one pipeline node (inode) to a resource (EXEC {@code getisassignmentinfo}).
+     *
+     * @param inode_id    the pipeline node id
+     * @param resource_id the pipeline (resource) id
+     * @return the reply, or null on failure
+     */
     public Map<String, String> get_pipeline_is_assignment_info(String inode_id, String resource_id) {
 
         Map<String, String> reply = null;
@@ -436,6 +554,12 @@ public class GlobalController {
         return reply;
     }
 
+    /**
+     * Export a pipeline's CADL (EXEC {@code getgpipelineexport}).
+     *
+     * @param pipeline_id the pipeline id
+     * @return the reply holding the exported pipeline, or null on failure
+     */
     public Map<String, String> get_pipeline_export(String pipeline_id) {
 
         Map<String, String> reply = null;
@@ -456,6 +580,12 @@ public class GlobalController {
         return reply;
     }
     
+    /**
+     * Remove a pipeline and stop its plugins (CONFIG {@code gpipelineremove}).
+     *
+     * @param pipeline_id the pipeline id
+     * @return true if the global controller reported success
+     */
     public boolean remove_pipeline(String pipeline_id) {
 
         boolean isRemoved = false;

@@ -3,7 +3,7 @@
   "port": "8282",
   "service_key": "",
   "example": "stunnel",
-  "dataplane_query": "region_id IS NOT NULL AND agent_id IS NOT NULL",
+  "dataplane_query": "stream_name='example'",
   "sTunnel": {
     "plugin_jar": "",
     "remove_on_exit": true,
