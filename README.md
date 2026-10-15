@@ -88,7 +88,11 @@ An RPC returns `null` if no reply arrives within 30 s.
 
 A dataplane is its own WebSocket. Its first frame is the stream handshake: a JSON stream config (send and
 receive) or a selector such as `stream_name='demo'` (receive only). Messages sent on a stream are tagged
-`ident_key=ident_id`, and every stream whose handshake selects that tag receives them.
+`ident_key=ident_id`, and every stream whose handshake selects that tag receives them, exactly once each. That
+includes the sender: a JSON-config stream subscribes to its own `ident_key='ident_id'`, so it gets its own messages
+back once (topic semantics, by design). A stream is bound to the one WebSocket its handshake went on, and sends from
+any thread use that socket (clientlib builds before 2026-10-15 opened a second socket for a send from another thread;
+it re-sent the handshake, so every message on the stream arrived twice).
 
 ```java
 String stream = "{\"ident_key\":\"stream_name\",\"ident_id\":\"demo\",\"io_type_key\":\"type\",\"input_id\":\"in\"}";

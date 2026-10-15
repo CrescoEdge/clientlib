@@ -43,8 +43,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * WebSocket transport for the Cresco client on Netty (matches the wsapi Netty server). A trust-all
  * {@link SslContext} + Netty {@link Bootstrap}; identity (region/agent/plugin) is read from the
- * negotiated TLS peer certificate. Per-thread {@link WsConn} pooling; cresco_service_key auth
- * header on the upgrade. All resources released in {@link #close()} so the JVM can exit.
+ * negotiated TLS peer certificate. Per-thread {@link WsConn} pooling for the stateless apisocket
+ * ({@link #getSession()}); stream sockets (dataplane, logstreamer) use the one connection that
+ * {@link #connect()} opened ({@link #getStreamSession()}). cresco_service_key auth header on the
+ * upgrade. All resources released in {@link #close()} so the JVM can exit.
  */
 public class WSInterface {
 
@@ -55,6 +57,8 @@ public class WSInterface {
     private String regionName, agentName, pluginName;
     private final AtomicBoolean isReconnect = new AtomicBoolean(true);
     private final AtomicBoolean inConnect = new AtomicBoolean(false);
+    // the connection connect() opened: the one a stream's handshake was sent on
+    private volatile WsConn streamSession;
     private static final Logger LOG = LoggerFactory.getLogger(WSInterface.class);
 
     private EventLoopGroup group;
@@ -127,6 +131,7 @@ public class WSInterface {
                     }
                     WsConn first = getSession(false);
                     if (first != null) {
+                        streamSession = first;
                         setAgentInfo(first.channel());
                         isActive.set(true);
                     } else {
@@ -236,6 +241,39 @@ public class WSInterface {
         return session;
     }
 
+    /**
+     * The connection {@link #connect()} opened, or null when it is not open. Never opens one.
+     *
+     * <p>A stream socket (dataplane, logstreamer) is stateful: its first frame is the stream
+     * handshake, which the server binds to that one connection. {@link #getSession()} pools a
+     * connection PER THREAD, so a send from any thread other than the one that connected opened a
+     * second socket, whose onConnect re-sent the handshake: the server then held two subscriptions
+     * for the stream and every message on it reached the callback twice (2026-10-15). Streams must
+     * send on this connection only; when it is down the owner's reconnect monitor re-opens it.
+     *
+     * @return the stream connection, or null if not connected
+     */
+    public WsConn getStreamSession() {
+        WsConn s = streamSession;
+        return (s != null && s.isOpen()) ? s : null;
+    }
+
+    /**
+     * {@link #getStreamSession()}, waiting up to {@code waitMs} while a connect is in progress
+     * (e.g. a send right after {@code connect()}, which connects on a background thread).
+     *
+     * @param waitMs longest wait in milliseconds
+     * @return the stream connection, or null if it did not open in time
+     */
+    public WsConn getStreamSession(long waitMs) {
+        long deadline = System.currentTimeMillis() + Math.max(0L, waitMs);
+        WsConn s;
+        while ((s = getStreamSession()) == null && isReconnect.get() && System.currentTimeMillis() < deadline) {
+            try { Thread.sleep(10); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return null; }
+        }
+        return s;
+    }
+
     public void close() {
         isReconnect.set(false);
         clearWS();
@@ -243,6 +281,7 @@ public class WSInterface {
 
     private void clearWS() {
         isActive.set(false);
+        streamSession = null;
         List<WsConn> open;
         synchronized (sessionLock) {
             open = new ArrayList<>(sessionMap.values());

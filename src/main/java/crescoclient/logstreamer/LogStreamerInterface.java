@@ -87,6 +87,16 @@ public class LogStreamerInterface {
         gson = new Gson();
     }
 
+    // The connection this stream's handshake went on. Sends from any thread must use it: the
+    // per-thread getSession() opened a second socket that re-sent the handshake (duplicate delivery).
+    private static final long STREAM_WAIT_MS = 10_000L;
+
+    private crescoclient.core.WsConn streamSession() throws java.io.IOException {
+        crescoclient.core.WsConn s = wsInterface.getStreamSession(STREAM_WAIT_MS);
+        if (s == null) throw new java.io.IOException("stream not connected");
+        return s;
+    }
+
     /**
      * Send a raw control line ({@code region,agent,level,baseclass}) on the log stream.
      *
@@ -95,7 +105,7 @@ public class LogStreamerInterface {
     public void send(String message) {
 
         try {
-            wsInterface.getSession().sendText(message);
+            streamSession().sendText(message);
         } catch (Exception e) {
             LOG.error("send() failed", e);
         }

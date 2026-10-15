@@ -119,6 +119,16 @@ public class DataPlaneInterface {
         gson = new Gson();
     }
 
+    // The connection this stream's handshake went on. Sends from any thread must use it: the
+    // per-thread getSession() opened a second socket that re-sent the handshake (duplicate delivery).
+    private static final long STREAM_WAIT_MS = 10_000L;
+
+    private crescoclient.core.WsConn streamSession() throws java.io.IOException {
+        crescoclient.core.WsConn s = wsInterface.getStreamSession(STREAM_WAIT_MS);
+        if (s == null) throw new java.io.IOException("stream not connected");
+        return s;
+    }
+
     /**
      * Publish a text message on this stream (tagged with the stream's ident and input id).
      *
@@ -128,7 +138,7 @@ public class DataPlaneInterface {
 
         try {
             if(wsInterface.connected()) {
-                wsInterface.getSession().sendText(message);
+                streamSession().sendText(message);
                 messagesSent++;
                 bytesSent += message.length();
             } else {
@@ -153,7 +163,7 @@ public class DataPlaneInterface {
                 // async, but bounded latency instead of an unbounded outgoing queue). The send
                 // speed comes from the enlarged client OUTPUT buffer (see WSInterface), not from
                 // firing async.
-                wsInterface.getSession().sendBinary(byteBuffer);
+                streamSession().sendBinary(byteBuffer);
                 messagesSent++;
                 bytesSent += n;
             } else {
@@ -200,7 +210,7 @@ public class DataPlaneInterface {
         try {
             if(wsInterface.connected()) {
                 int n = byteBuffer.remaining();
-                wsInterface.getSession().sendBinary(byteBuffer, complete);
+                streamSession().sendBinary(byteBuffer, complete);
                 bytesSent += n;
                 if (complete) messagesSent++;
             } else {
