@@ -72,6 +72,13 @@ public class DataPlaneInterface {
     private volatile boolean reconnecting = false;
     private Thread reconnectMonitor;
     private static final long RECONNECT_CHECK_MS = 5000;
+    /** How often a receiver whose subscription was refused asks again (a policy can change); the socket stays open meanwhile. */
+    static final long REFUSED_RETRY_MS = 60_000L;
+    long refusedRetryMs = REFUSED_RETRY_MS;
+    private volatile long refusedAt;
+    // seams for tests: is the stream's socket up, and how to reopen it (a new handshake = a new subscription attempt)
+    java.util.function.BooleanSupplier socketConnected = () -> wsInterface.connected();
+    Runnable reopenStream = () -> { wsInterface.close(); wsInterface.start(connectionTimeout); };
 
     /**
      * Create a dataplane stream that prints what it receives. Prefer {@link crescoclient.CrescoClient#get_dataplane}.
@@ -265,9 +272,11 @@ public class DataPlaneInterface {
             try {
                 Thread.sleep(2000); // initial delay before monitoring starts
                 while (!closing) {
-                    // refused by policy: retrying every few seconds will not help; look again now and then
-                    Thread.sleep(subscriptionRefused != null && receiver ? 60_000L : RECONNECT_CHECK_MS);
+                    Thread.sleep(RECONNECT_CHECK_MS);
                     if (closing) break;
+                    // refused by policy: wsapi keeps the socket open (for sending), so a refused receiver would never
+                    // subscribe again; ask again every REFUSED_RETRY_MS (retrying every few seconds would not help)
+                    if (retryRefusedIfDue(System.currentTimeMillis())) continue;
                     if (!wsInterface.connected()) {
                         if (!reconnecting) {
                             reconnecting = true;
@@ -297,6 +306,22 @@ public class DataPlaneInterface {
         return wsInterface.connected();
     }
 
+    /**
+     * When this is a receiver whose subscription was refused at least {@link #REFUSED_RETRY_MS} ago and its socket is still
+     * open, reopen the stream: the new handshake is a new subscription attempt (status 10 if the policy now allows it, 40
+     * again otherwise). Called by the reconnect monitor.
+     *
+     * @return true when it reopened the stream
+     */
+    boolean retryRefusedIfDue(long now) {
+        if (!receiver || subscriptionRefused == null || closing || !socketConnected.getAsBoolean()) return false;
+        if (now - refusedAt < refusedRetryMs) return false;
+        refusedAt = now;
+        LOG.info("dataplane " + streamQuery + ": asking again for the refused subscription (" + subscriptionRefused + ")");
+        reopenStream.run();
+        return true;
+    }
+
     /** wsapi activation status: listener active. */
     public static final String STATUS_ACTIVE = "10";
     /** wsapi activation status: the broker refused the subscription; the stream stays open for sending. */
@@ -310,6 +335,7 @@ public class DataPlaneInterface {
             isActive = true;
         } else if (STATUS_SUBSCRIPTION_REFUSED.equals(code)) {
             subscriptionRefused = statusMap.getOrDefault("status_desc", "subscription refused");
+            refusedAt = System.currentTimeMillis();
             if (receiver) {
                 // a receiver that cannot receive is not active, on the first session and on every reconnect alike
                 isActive = false;
