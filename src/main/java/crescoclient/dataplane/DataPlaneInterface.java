@@ -47,6 +47,11 @@ public class DataPlaneInterface {
     // one-shot: after a reconnect the new session's status frame leaked to the consumer as data
     // and the stream could never re-activate.
     private volatile boolean handshakePending = true;
+    // the broker's reason when it refused this stream's subscription (wsapi status 40), else null
+    private volatile String subscriptionRefused;
+    // true when the caller passed a callback (it wants to receive); a dataplane without one is a sender
+    private final boolean receiver;
+    private final String streamQuery;
     // client-side counters exposed via get_metrics() (parity with the Python dataplane)
     private long messagesSent = 0;
     private long bytesReceived = 0;
@@ -88,6 +93,8 @@ public class DataPlaneInterface {
         wsConfig.put("stream_query", streamQuery);
 
         onMessageCallback = new LogPrinter();
+        receiver = false;
+        this.streamQuery = streamQuery;
         wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
         gson = new Gson();
     }
@@ -114,6 +121,8 @@ public class DataPlaneInterface {
         LOG.debug("DataPlaneInterface query: {}", streamQuery);
 
         this.onMessageCallback = onMessageCallback;
+        this.receiver = onMessageCallback != null;
+        this.streamQuery = streamQuery;
         wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
 
         gson = new Gson();
@@ -287,6 +296,47 @@ public class DataPlaneInterface {
         return wsInterface.connected();
     }
 
+    /** wsapi activation status: listener active. */
+    public static final String STATUS_ACTIVE = "10";
+    /** wsapi activation status: the broker refused the subscription; the stream stays open for sending. */
+    public static final String STATUS_SUBSCRIPTION_REFUSED = "40";
+
+    /** Apply a session's activation reply (the first frame wsapi sends). */
+    void onActivationReply(Map<String, String> statusMap) {
+        String code = statusMap == null ? null : statusMap.get("status_code");
+        if (STATUS_ACTIVE.equals(code)) {
+            subscriptionRefused = null;
+            isActive = true;
+        } else if (STATUS_SUBSCRIPTION_REFUSED.equals(code)) {
+            subscriptionRefused = statusMap.getOrDefault("status_desc", "subscription refused");
+            isActive = true;                                      // still usable for sending
+            LOG.warn("dataplane " + streamQuery + ": " + subscriptionRefused + " (open for sending only)");
+            if (receiver) {
+                try { onMessageCallback.onSubscriptionRefused(subscriptionRefused); } catch (Exception e) { LOG.error("onSubscriptionRefused failed", e); }
+            }
+        } else {
+            LOG.error("dataplane listener activation failed: " + statusMap);
+        }
+    }
+
+    /** The broker's reason when it refused this stream's subscription, else null. */
+    public String getSubscriptionRefused() {
+        return subscriptionRefused;
+    }
+
+    /**
+     * Wait for the stream's activation reply.
+     *
+     * @return true when active (for a sender, also when the subscription was refused), false on timeout
+     * @throws SubscriptionRefusedException when the broker refused the subscription of a stream that was given a callback
+     */
+    public boolean awaitActive(long timeoutMs) throws InterruptedException {
+        long end = System.currentTimeMillis() + timeoutMs;
+        while (!isActive && System.currentTimeMillis() < end) Thread.sleep(50);
+        if (subscriptionRefused != null && receiver) throw new SubscriptionRefusedException(streamQuery, subscriptionRefused);
+        return isActive;
+    }
+
     /**
      * Whether the stream's socket is connected (same as {@link #connected()}).
      *
@@ -343,12 +393,7 @@ public class DataPlaneInterface {
             try {
                 if(handshakePending) {
                     handshakePending = false;
-                    Map<String, String> statusMap = gson.fromJson(msg, type);
-                    if(statusMap.get("status_code").equals("10")) {
-                        isActive = true;
-                    } else {
-                        LOG.error("dataplane listener activation failed: " + msg);
-                    }
+                    onActivationReply(gson.fromJson(msg, type));
                 } else {
                     onMessageCallback.onMessage(msg);
                 }
