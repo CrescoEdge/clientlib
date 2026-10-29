@@ -48,4 +48,20 @@ class SubscriptionRefusedTest {
         assertTrue(dp.awaitActive(100));
         assertNull(dp.getSubscriptionRefused());
     }
+
+    @Test
+    void aRefusalOnReconnectIsReportedAndTheReceiverIsInactive() throws Exception {
+        java.util.List<String> told = new java.util.ArrayList<>();
+        DataPlaneInterface dp = new DataPlaneInterface("localhost", 8282, "key", "stream", new OnMessageCallback() {
+            @Override public void onMessage(String msg) { }
+            @Override public void onMessage(byte[] b, int offset, int length) { }
+            @Override public void onSubscriptionRefused(String reason) { told.add(reason); }
+        });
+        dp.onActivationReply(Map.of("status_code", "10"));
+        assertTrue(dp.awaitActive(100));
+        dp.onActivationReply(REFUSAL);                         // a reconnect, refused
+        assertThrows(SubscriptionRefusedException.class, () -> dp.awaitActive(100));
+        assertEquals(1, told.size());
+        assertFalse(dp.isReceiving(), "a receiver whose re-subscription was refused still reports receiving");
+    }
 }

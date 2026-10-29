@@ -265,7 +265,8 @@ public class DataPlaneInterface {
             try {
                 Thread.sleep(2000); // initial delay before monitoring starts
                 while (!closing) {
-                    Thread.sleep(RECONNECT_CHECK_MS);
+                    // refused by policy: retrying every few seconds will not help; look again now and then
+                    Thread.sleep(subscriptionRefused != null && receiver ? 60_000L : RECONNECT_CHECK_MS);
                     if (closing) break;
                     if (!wsInterface.connected()) {
                         if (!reconnecting) {
@@ -309,10 +310,14 @@ public class DataPlaneInterface {
             isActive = true;
         } else if (STATUS_SUBSCRIPTION_REFUSED.equals(code)) {
             subscriptionRefused = statusMap.getOrDefault("status_desc", "subscription refused");
-            isActive = true;                                      // still usable for sending
-            LOG.warn("dataplane " + streamQuery + ": " + subscriptionRefused + " (open for sending only)");
             if (receiver) {
+                // a receiver that cannot receive is not active, on the first session and on every reconnect alike
+                isActive = false;
+                LOG.warn("dataplane " + streamQuery + ": " + subscriptionRefused + " (this receiver gets nothing)");
                 try { onMessageCallback.onSubscriptionRefused(subscriptionRefused); } catch (Exception e) { LOG.error("onSubscriptionRefused failed", e); }
+            } else {
+                isActive = true;                                  // a sender can still send
+                LOG.warn("dataplane " + streamQuery + ": " + subscriptionRefused + " (open for sending only)");
             }
         } else {
             LOG.error("dataplane listener activation failed: " + statusMap);
@@ -332,7 +337,7 @@ public class DataPlaneInterface {
      */
     public boolean awaitActive(long timeoutMs) throws InterruptedException {
         long end = System.currentTimeMillis() + timeoutMs;
-        while (!isActive && System.currentTimeMillis() < end) Thread.sleep(50);
+        while (!isActive && subscriptionRefused == null && System.currentTimeMillis() < end) Thread.sleep(50);
         if (subscriptionRefused != null && receiver) throw new SubscriptionRefusedException(streamQuery, subscriptionRefused);
         return isActive;
     }
@@ -344,6 +349,16 @@ public class DataPlaneInterface {
      */
     public boolean is_active() {
         return wsInterface.connected();
+    }
+
+    /**
+     * Whether this stream is activated and its subscription was not refused: for a receiver, whether it is receiving.
+     * False after a refusal, on the first session or any reconnect.
+     *
+     * @return true if activated and not refused
+     */
+    public boolean isReceiving() {
+        return isActive && subscriptionRefused == null && wsInterface.connected();
     }
 
     /**
