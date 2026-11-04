@@ -25,6 +25,7 @@ public final class Credentials {
     private final String password;
     private final String serviceKey;
     private final String token;
+    private boolean clientCertificate;
 
     private Credentials(String user, String password, String serviceKey) {
         this(user, password, serviceKey, null);
@@ -53,6 +54,18 @@ public final class Credentials {
 
     public boolean isToken() { return token != null; }
 
+    /**
+     * No HTTP credential: the TLS client certificate is the credential (wsapi's production profile). Use with a
+     * {@link ClientCertificate} ({@link ClientSecurity}).
+     */
+    public static Credentials clientCertificate() {
+        Credentials c = new Credentials(null, null, null, null);
+        c.clientCertificate = true;
+        return c;
+    }
+
+    public boolean isClientCertificate() { return clientCertificate; }
+
     /** The wsapi service key (an admin of the agent's tenant). */
     public static Credentials serviceKey(String key) {
         if (key == null || key.isEmpty()) throw new IllegalArgumentException("credentials needed: a service key, or a user and password");
@@ -79,6 +92,7 @@ public final class Credentials {
     /** The upgrade request headers. */
     public HttpHeaders headers() {
         DefaultHttpHeaders h = new DefaultHttpHeaders();
+        if (clientCertificate) return h;                  // the TLS client certificate is the credential
         if (token != null) {
             h.add(HttpHeaderNames.AUTHORIZATION, "Bearer " + token);
         } else if (user != null) {
@@ -92,6 +106,7 @@ public final class Credentials {
 
     @Override
     public String toString() {
+        if (clientCertificate) return "client certificate";
         if (token != null) return "API token " + token.substring(5, 21);
         return user != null ? "user " + user : "service key";
     }

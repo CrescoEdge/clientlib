@@ -94,10 +94,20 @@ final class TestServer implements AutoCloseable {
     private final EventLoopGroup group;
     private final Channel channel;
 
+    /** The client certificates presented with the upgrade requests (wsapi's production profile requires one). */
+    final List<X509Certificate> clientCerts = Collections.synchronizedList(new ArrayList<>());
+
     TestServer(Cert cert, int rejectStatus) throws Exception {
+        this(cert, rejectStatus, null);
+    }
+
+    /** {@code clientCa} (a PEM file), if given: every connection must present a client certificate it issued. */
+    TestServer(Cert cert, int rejectStatus, Path clientCa) throws Exception {
         KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         kmf.init(cert.store, PW);
-        SslContext ssl = SslContextBuilder.forServer(kmf).build();
+        SslContextBuilder sb = SslContextBuilder.forServer(kmf);
+        if (clientCa != null) sb.trustManager(clientCa.toFile()).clientAuth(io.netty.handler.ssl.ClientAuth.REQUIRE);
+        SslContext ssl = sb.build();
         group = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
         channel = new ServerBootstrap().group(group).channel(NioServerSocketChannel.class)
                 .childHandler(new ChannelInitializer<SocketChannel>() {
@@ -127,6 +137,13 @@ final class TestServer implements AutoCloseable {
                 req.headers().forEach(e -> h.put(e.getKey().toLowerCase(), e.getValue()));
                 h.put(":path", req.uri());
                 requests.add(h);
+                io.netty.handler.ssl.SslHandler sh = ctx.pipeline().get(io.netty.handler.ssl.SslHandler.class);
+                try {
+                    java.security.cert.Certificate[] peer = sh == null ? null : sh.engine().getSession().getPeerCertificates();
+                    if (peer != null && peer.length > 0) clientCerts.add((X509Certificate) peer[0]);
+                } catch (javax.net.ssl.SSLPeerUnverifiedException none) {
+                    // no client certificate
+                }
                 path = req.uri();
                 ctx.channel().attr(PATH).set(path);
                 if (reject > 0) {

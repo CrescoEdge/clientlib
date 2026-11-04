@@ -237,8 +237,13 @@ public final class TlsTrust {
         }
     }
 
-    /** The Netty client context for one connection target; logs the insecure WARNING. */
+    /** The Netty client context for one connection target (no client certificate). */
     SslContext sslContext(SslProvider provider, String url) throws Exception {
+        return builder(provider).build();
+    }
+
+    /** The Netty client context builder with this trust (a client certificate may be added: {@link ClientSecurity}). */
+    SslContextBuilder builder(SslProvider provider) {
         SslContextBuilder b = SslContextBuilder.forClient().sslProvider(provider).protocols("TLSv1.3", "TLSv1.2");
         switch (mode) {
             case PINNED:
@@ -253,7 +258,7 @@ public final class TlsTrust {
             default:
                 b.trustManager((javax.net.ssl.TrustManagerFactory) null).endpointIdentificationAlgorithm(checkHostname ? "HTTPS" : null);
         }
-        return b.build();
+        return b;
     }
 
     /** Logged for every connection made without verification. */
