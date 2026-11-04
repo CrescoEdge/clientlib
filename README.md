@@ -144,6 +144,23 @@ JSON config file (`cp config.example.json config.json`, set `service_key` and `t
 `java -cp target/clientlib-1.3-SNAPSHOT.jar example.Launcher config.json`); with `"echo_test": true` it also pushes
 bytes through each tunnel.
 
+### Processes and their stdin (executor)
+
+Run a command on an agent through the executor plugin and drive its stdin. Its stdout and stderr stream over the
+dataplane under its `stream_name`; **stdin is never the dataplane** but the executor's `write_stdin` action, accepted
+only from the caller that started the runner, an admin or infra, for a runner configured with `stdin=true`:
+
+```java
+client.get_dataplane("{\"ident_key\":\"stream_name\",\"ident_id\":\"job-1\"}", printer).connect();  // its output
+client.executor.config_process("global-region", "agent-a", "job-1", "sort", true, false, null);       // stdin=true
+client.executor.run_process("global-region", "agent-a", "job-1", null);
+client.executor.write_stdin("global-region", "agent-a", "job-1", "pear");
+client.executor.write_stdin("global-region", "agent-a", "job-1", "apple", true, true, null);         // and end input
+```
+
+`write_stdin` throws `Executor.StdinWriteException` when the executor refuses (`getRefusal()`: `not-owner`,
+`no-stdin`, `not-running`).
+
 ### Javadoc
 
 Every public class and method is documented. Build the HTML API reference with
@@ -192,7 +209,7 @@ Signatures are shown language-neutrally; names and behavior are identical in bot
 | `close_logstreamer(name) -> bool` | Close and deregister the named logstreamer. |
 | `get_active_logstreamers() -> list` | List names of currently registered logstreamers. |
 
-Submodule handles: `messaging`, `agents`, `admin`, `api`, `globalcontroller`, `stunnel`.
+Submodule handles: `messaging`, `agents`, `admin`, `api`, `globalcontroller`, `stunnel`, `executor`, `filerepo`.
 
 ### `api`
 
@@ -301,6 +318,21 @@ All take `(is_rpc, message_event_type, message_payload, ...)` and return the rep
 | `regional_plugin_msgevent(..., dst_agent, dst_plugin)` | a plugin in the local region |
 | `plugin_msgevent(..., dst_plugin)` | a local plugin |
 
+### `executor`
+
+Run OS processes on an agent through the [io.cresco.executor](https://github.com/CrescoEdge/executor) plugin and drive
+their stdin (stdin is the executor's `write_stdin` action, never the dataplane). Plugin ids are resolved by name when
+`plugin_id` is null / `None`.
+
+| Method | Description |
+|---|---|
+| `config_process(region, agent, stream_name, command, stdin=False, metrics=False, plugin_id=None)` | Register a runner (`infra` / `admin`). Returns `{config_status, stdin, error_msg}`; `stdin` says whether it takes `write_stdin`. |
+| `run_process(region, agent, stream_name, plugin_id=None)` | Start it (`infra` / `admin`); the caller that starts it may write its stdin. |
+| `write_stdin(region, agent, stream_name, data, newline=True, close=False, plugin_id=None)` | Write text (UTF-8, newline appended unless `newline=False`) or bytes; `close` ends input after it. Input over 64 KiB goes in ordered writes. Returns the bytes written; **raises** `StdinWriteError` / `Executor.StdinWriteException` (refusal `not-owner`, `no-stdin`, `not-running`; bytes written) when the executor refuses. |
+| `close_stdin(region, agent, stream_name, plugin_id=None)` | End the process's input. |
+| `status_process(region, agent, stream_name, plugin_id=None)` | True while it runs. |
+| `end_process(region, agent, stream_name, plugin_id=None)` | Kill it (its whole tree) and free the runner (`infra` / `admin`). |
+
 ### `filerepo`
 
 | Method | Description |
@@ -390,8 +422,11 @@ pin.
 
 - A dataplane `MapMessage` (for example the executor's `execution_log` with a process's exit code, and its
   `delete_exchange`) arrives as a text message holding the JSON object of its entries.
-- No dataplane subscription receives a process's stdin (wsapi narrows every subscription), so a client cannot read what
-  others type into a runner; writing stdin is unchanged (open the stream with `input_id=<stdin_type>`).
+- No dataplane stream carries a process's stdin. It is written with `executor.write_stdin` (the executor's
+  `write_stdin` action); a dataplane stream config that would write it (`io_type_key` `type`, `input_id` `input` or
+  `input-*`) throws `IllegalArgumentException` here, and wsapi refuses it too. No subscription receives stdin either
+  (wsapi narrows every subscription). Before this release stdin was written by opening such a stream; the hardened
+  executor reads none.
 - `filerepo.stream_file` downloads a file from a filerepo plugin over the dataplane and verifies it: filerepo ends every
   transfer with a terminal frame carrying its status and the SHA-384 of the bytes it sent (through wsapi, a JSON text
   frame `{"transfer_id", "transfer_end": "true", "transfer_status", "total_bytes", "sha384", ...}`). The chunks are

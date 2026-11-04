@@ -28,7 +28,9 @@ import java.util.Map;
  *   <li>a selector such as {@code stream_name='demo'} ({@code ident = 'value'} terms joined by AND, at least one
  *       equality): receive-only.</li>
  * </ul>
- * wsapi refuses selectors that could match other streams (OR, IS NULL, ...) and closes the socket.
+ * wsapi refuses selectors that could match other streams (OR, IS NULL, ...) and closes the socket. No stream writes a
+ * process's stdin ({@code input_id} {@code input} / {@code input-*} is refused here and by wsapi): stdin is
+ * {@link crescoclient.core.Executor#write_stdin}.
  *
  * <pre>{@code
  * String stream = "{\"ident_key\":\"stream_name\",\"ident_id\":\"demo\",\"io_type_key\":\"type\",\"input_id\":\"in\"}";
@@ -103,6 +105,7 @@ public class DataPlaneInterface {
      * @param connectionTimeout connect timeout in seconds
      */
     public DataPlaneInterface(String host, int port, crescoclient.core.ClientSecurity security, String streamQuery, int connectionTimeout) {
+        refuseStdin(streamQuery);
         this.connectionTimeout = connectionTimeout;
 
         wsConfig = new HashMap<>();
@@ -142,7 +145,7 @@ public class DataPlaneInterface {
      * @param onMessageCallback receives text and binary messages
      */
     public DataPlaneInterface(String host, int port, crescoclient.core.ClientSecurity security, String streamQuery, OnMessageCallback onMessageCallback) {
-
+        refuseStdin(streamQuery);
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
@@ -157,6 +160,31 @@ public class DataPlaneInterface {
         wsInterface = new WSInterface(wsConfig, security, new WSLogStreamerCallback());
 
         gson = new Gson();
+    }
+
+    /**
+     * Why a stream config would write a process's stdin, or null. A JSON config with {@code io_type_key} {@code type}
+     * and {@code input_id} {@code input} or {@code input-*} tags every frame it sends as a process's stdin; the executor
+     * takes stdin only from its write_stdin action ({@link crescoclient.core.Executor#write_stdin}) and reads none from
+     * the dataplane, and wsapi refuses such a stream.
+     */
+    public static String stdinStreamRefusal(String streamQuery) {
+        Map<String, Object> cfg;
+        try {
+            cfg = new Gson().fromJson(streamQuery, new TypeToken<Map<String, Object>>() {}.getType());
+        } catch (RuntimeException notJson) {
+            return null;
+        }
+        if (cfg == null || !"type".equals(cfg.get("io_type_key")) || !(cfg.get("input_id") instanceof String)) return null;
+        String t = (String) cfg.get("input_id");
+        if (!t.equals("input") && !t.startsWith("input-")) return null;
+        return "a process's stdin (type=" + t + ") is not written on the dataplane: use executor.write_stdin "
+                + "(the executor's write_stdin action)";
+    }
+
+    private static void refuseStdin(String streamQuery) {
+        String why = stdinStreamRefusal(streamQuery);
+        if (why != null) throw new IllegalArgumentException(why);
     }
 
     // The connection this stream's handshake went on. Sends from any thread must use it: the
