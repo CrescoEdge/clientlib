@@ -236,6 +236,31 @@ class ClientTlsTest {
     }
 
     @Test
+    void aRefusedCredentialOrCertificateIsNotRetriedEverySecond() throws Exception {
+        // wsapi locks an address out after repeated failures; a client retrying a wrong password every second would
+        // lock out every client on its host within seconds
+        try (TestServer srv = new TestServer(good, 401)) {
+            CrescoClient c = CrescoClient.builder("localhost", srv.port).credentials("alice", "wrong-pw")
+                    .pinnedFingerprint(TlsTrust.fingerprint(good.cert, "SHA-384")).build();
+            c.connect(false);
+            Thread.sleep(3500);
+            assertEquals(1, srv.requests.size(), "one attempt, then a minute's wait");
+            long t0 = System.currentTimeMillis();
+            c.close();
+            assertTrue(System.currentTimeMillis() - t0 < 2000, "close() is prompt");
+            assertTrue(c.last_error().contains("HTTP 401"), c.last_error());
+        }
+        try (TestServer srv = new TestServer(other, 0)) {
+            WSInterface ws = new WSInterface(cfg(srv.port, "/api/apisocket"), sec(TlsTrust.pinned(TlsTrust.fingerprint(good.cert, "SHA-384"))), NOOP);
+            ws.start(5);
+            Thread.sleep(3500);
+            assertTrue(ws.hasPermanentFailure());
+            ws.close();
+            assertEquals(List.of(), srv.requests);
+        }
+    }
+
+    @Test
     void credentialAndPinValidation() {
         assertThrows(IllegalArgumentException.class, () -> Credentials.user("a:b", "pw"));
         assertThrows(IllegalArgumentException.class, () -> Credentials.user("alice", ""));

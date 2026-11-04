@@ -73,6 +73,12 @@ public class WSInterface {
     private final ClientSecurity security;
     // why the last connection attempt failed (an untrusted certificate, refused credentials, the network), or null
     private volatile String lastError;
+    // the last failure will not go away by retrying soon: wsapi refused the credentials (401/403), is rate limiting this
+    // address (429), or the certificate is not trusted. Retrying every second would only burn wsapi's failure budget
+    // for this address (it locks an address out after repeated failures), so such failures are retried once a minute.
+    private volatile boolean permanentFailure;
+    /** How long to wait before retrying after a credential, rate-limit or certificate failure. */
+    static final long PERMANENT_FAILURE_RETRY_MS = 60_000L;
 
     /** A transport that authenticates with {@code wsConfig.service_key} and trusts per {@link TlsTrust#defaultTrust()}. */
     public WSInterface(Map<String, String> wsConfig, WSCallback wsCallback) {
@@ -92,6 +98,9 @@ public class WSInterface {
 
     /** Why the last connection attempt failed, or null. */
     public String getLastError() { return lastError; }
+
+    /** True when the last attempt failed in a way retrying soon cannot fix (credentials, rate limit, certificate). */
+    public boolean hasPermanentFailure() { return permanentFailure; }
 
     /** Record (and log once per distinct reason) why a connection failed; never includes a secret. */
     void failed(Throwable cause) {
@@ -114,11 +123,13 @@ public class WSInterface {
         }
         if (ws != null && ws.response() != null) {
             int st = ws.response().status().code();
+            permanentFailure = st == 401 || st == 403 || st == 429;
             String what = st == 401 ? "refused the credentials" : st == 403 ? "refused this caller"
                     : st == 429 ? "is refusing attempts from this address after repeated failures" : "refused the upgrade";
             return "wsapi at " + host + ":" + port + " " + what + " (HTTP " + st + ") for " + (security == null ? "?" : security.credentials());
         }
         if (cert != null) {
+            permanentFailure = true;
             String m = String.valueOf(cert.getMessage());
             if (m.startsWith("wsapi certificate mismatch")) return m;
             return "wsapi certificate for " + host + ":" + port + " is not trusted (" + security.trust() + "): " + m
@@ -127,6 +138,7 @@ public class WSInterface {
         }
         Throwable root = cause;
         while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+        permanentFailure = root instanceof javax.net.ssl.SSLException;
         if (root instanceof javax.net.ssl.SSLException) {
             return "TLS with " + host + ":" + port + " failed (" + security.trust() + "): " + root.getMessage() + ". Nothing was sent.";
         }
@@ -202,7 +214,14 @@ public class WSInterface {
                 clearWS();
                 isReconnect.set(true);
                 while (isReconnect.get() && !isActive.get()) {
-                    try { connect(); Thread.sleep(1000); }
+                    try {
+                        connect();
+                        if (isActive.get()) break;
+                        // a refused credential or certificate is retried once a minute, anything else every second;
+                        // waited in slices so close() ends this thread promptly
+                        long until = System.currentTimeMillis() + (permanentFailure ? PERMANENT_FAILURE_RETRY_MS : 1000L);
+                        while (isReconnect.get() && System.currentTimeMillis() < until) Thread.sleep(100);
+                    }
                     catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
                 }
             } catch (Exception ex) { LOG.debug("start() reconnect loop ended: {}", ex.getMessage()); }
@@ -268,6 +287,7 @@ public class WSInterface {
                 return null;
             }
             lastError = null;
+            permanentFailure = false;
             return new WsConn(channel);
         } catch (Exception ex) {
             failed(ex);
