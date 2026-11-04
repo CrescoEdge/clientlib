@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@link #admin} - stop/restart controller or framework, kill the JVM</li>
  *   <li>{@link #messaging} - raw MsgEvents to any controller, agent or plugin</li>
  *   <li>{@link #stunnel} - TCP tunnels through the io.cresco.stunnel plugin</li>
+ *   <li>{@link #filerepo} - verified file downloads from a filerepo plugin ({@code streamfile})</li>
  * </ul>
  * Data-plane and log streams are separate WebSockets created with {@link #get_dataplane} and
  * {@link #get_logstreamer}; the client tracks them by name and {@link #close()} closes them all.
@@ -52,6 +53,7 @@ public class CrescoClient {
     public API api;
     public GlobalController globalcontroller;
     public Stunnel stunnel;
+    public FileRepo filerepo;
 
     // Named resource registries (mirror the Python client): track streams by identifier so they
     // can be closed/enumerated centrally.
@@ -112,6 +114,7 @@ public class CrescoClient {
         this.api = new API(msgEventInterface, messaging);
         this.globalcontroller = new GlobalController(messaging);
         this.stunnel = new Stunnel(messaging, globalcontroller);
+        this.filerepo = new FileRepo(this);
     }
 
     /**
