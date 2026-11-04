@@ -90,19 +90,31 @@ public class DataPlaneInterface {
      * @param connectionTimeout connect timeout in seconds
      */
     public DataPlaneInterface(String host, int port, String serviceKey, String streamQuery, int connectionTimeout) {
+        this(host, port, serviceKey == null ? null : crescoclient.core.ClientSecurity.serviceKey(serviceKey), streamQuery, connectionTimeout);
+    }
+
+    /**
+     * Create a dataplane stream that prints what it receives, with explicit trust and credentials.
+     *
+     * @param host              wsapi host
+     * @param port              wsapi port
+     * @param security          how the server certificate is verified and what the stream authenticates with
+     * @param streamQuery       the stream handshake (see the class description)
+     * @param connectionTimeout connect timeout in seconds
+     */
+    public DataPlaneInterface(String host, int port, crescoclient.core.ClientSecurity security, String streamQuery, int connectionTimeout) {
         this.connectionTimeout = connectionTimeout;
 
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
-        wsConfig.put("service_key", serviceKey);
         wsConfig.put("api_path","/api/dataplane");
         wsConfig.put("stream_query", streamQuery);
 
         onMessageCallback = new LogPrinter();
         receiver = false;
         this.streamQuery = streamQuery;
-        wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
+        wsInterface = new WSInterface(wsConfig, security, new WSLogStreamerCallback());
         gson = new Gson();
     }
 
@@ -117,11 +129,23 @@ public class DataPlaneInterface {
      *                           ({@code onMessage(byte[], int, int)})
      */
     public DataPlaneInterface(String host, int port, String serviceKey, String streamQuery, OnMessageCallback onMessageCallback) {
+        this(host, port, serviceKey == null ? null : crescoclient.core.ClientSecurity.serviceKey(serviceKey), streamQuery, onMessageCallback);
+    }
+
+    /**
+     * Create a dataplane stream with a message callback, with explicit trust and credentials.
+     *
+     * @param host        wsapi host
+     * @param port        wsapi port
+     * @param security    how the server certificate is verified and what the stream authenticates with
+     * @param streamQuery the stream handshake (see the class description)
+     * @param onMessageCallback receives text and binary messages
+     */
+    public DataPlaneInterface(String host, int port, crescoclient.core.ClientSecurity security, String streamQuery, OnMessageCallback onMessageCallback) {
 
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
-        wsConfig.put("service_key", serviceKey);
         wsConfig.put("api_path","/api/dataplane");
         wsConfig.put("stream_query", streamQuery);
 
@@ -130,7 +154,7 @@ public class DataPlaneInterface {
         this.onMessageCallback = onMessageCallback;
         this.receiver = onMessageCallback != null;
         this.streamQuery = streamQuery;
-        wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
+        wsInterface = new WSInterface(wsConfig, security, new WSLogStreamerCallback());
 
         gson = new Gson();
     }
@@ -304,6 +328,15 @@ public class DataPlaneInterface {
      */
     public boolean connected() {
         return wsInterface.connected();
+    }
+
+    /**
+     * Why the stream's last connection attempt failed (an untrusted certificate, refused credentials, the network).
+     *
+     * @return the reason, or null
+     */
+    public String last_error() {
+        return wsInterface.getLastError();
     }
 
     /**

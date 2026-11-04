@@ -23,10 +23,11 @@ import java.util.Map;
  * </pre>
  *
  * The config file (default {@code config.json}; copy {@code config.example.json}) supplies
- * {@code host}, {@code port}, {@code service_key} and an {@code example} to run ({@code stunnel} or
- * {@code dataplane}). Missing keys fall back to the environment ({@code CRESCO_HOST}, {@code CRESCO_PORT},
- * {@code CRESCO_SERVICE_KEY}) and then to localhost:8282. Keep real service keys out of version control:
- * {@code config.json} is git-ignored.
+ * {@code host}, {@code port}, {@code service_key}, {@code tls_fingerprint} (the wsapi certificate fingerprint from
+ * its {@code ws.fingerprint} file) and an {@code example} to run ({@code stunnel} or {@code dataplane}). Missing keys
+ * fall back to the environment ({@code CRESCO_HOST}, {@code CRESCO_PORT}, {@code CRESCO_SERVICE_KEY},
+ * {@code CRESCO_TLS_FINGERPRINT} or {@code CRESCO_TLS_CA_FILE}) and then to localhost:8282. Keep real service keys
+ * out of version control: {@code config.json} is git-ignored.
  *
  * <p>Config-file loading contributed by Mitch Klusty (CrescoEdge/clientlib#3).
  */
@@ -47,9 +48,12 @@ public class Launcher {
             return;
         }
 
-        CrescoClient client = new CrescoClient(host, port, serviceKey);
+        String fingerprint = setting(config, "tls_fingerprint", null, null);
+        CrescoClient.Builder b = CrescoClient.builder(host, port).serviceKey(serviceKey);
+        if (fingerprint != null && !fingerprint.isEmpty()) b.pinnedFingerprint(fingerprint);   // else CRESCO_TLS_* / the JDK store
+        CrescoClient client = b.build();
         if (!client.connect()) {
-            System.out.println("Could not connect to " + host + ":" + port);
+            System.out.println("Could not connect to " + host + ":" + port + ": " + client.last_error());
             return;
         }
 

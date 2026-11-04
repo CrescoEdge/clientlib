@@ -10,7 +10,6 @@ import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketClientProtocolConfig;
@@ -19,10 +18,9 @@ import io.netty.handler.codec.http.websocketx.WebSocketFrameAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslProvider;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import io.netty.handler.codec.http.websocketx.WebSocketClientHandshakeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,12 +39,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * WebSocket transport for the Cresco client on Netty (matches the wsapi Netty server). A trust-all
- * {@link SslContext} + Netty {@link Bootstrap}; identity (region/agent/plugin) is read from the
- * negotiated TLS peer certificate. Per-thread {@link WsConn} pooling for the stateless apisocket
- * ({@link #getSession()}); stream sockets (dataplane, logstreamer) use the one connection that
- * {@link #connect()} opened ({@link #getStreamSession()}). cresco_service_key auth header on the
- * upgrade. All resources released in {@link #close()} so the JVM can exit.
+ * WebSocket transport for the Cresco client on Netty (matches the wsapi Netty server). The server certificate is
+ * verified per the client's {@link TlsTrust} (pinned fingerprint, CA file or the JDK store; {@link TlsTrust#insecure()}
+ * only on request, with a WARNING per connection), and nothing is sent to a server that fails it. Identity
+ * (region/agent/plugin) is read from the verified TLS peer certificate. Per-thread {@link WsConn} pooling for the
+ * stateless apisocket ({@link #getSession()}); stream sockets (dataplane, logstreamer) use the one connection that
+ * {@link #connect()} opened ({@link #getStreamSession()}). The upgrade carries the client's {@link Credentials}
+ * (per-user Basic, or the service key). All resources released in {@link #close()} so the JVM can exit.
  */
 public class WSInterface {
 
@@ -69,18 +68,72 @@ public class WSInterface {
     private final WSCallback wsCallback;
 
     private int connectionTimeout = 30;
-    private final String url, host, apiPath, serviceKey;
+    private final String url, host, apiPath;
     private final int port;
+    private final ClientSecurity security;
+    // why the last connection attempt failed (an untrusted certificate, refused credentials, the network), or null
+    private volatile String lastError;
 
+    /**
+     * A transport that authenticates with {@code wsConfig.service_key} and trusts per {@link TlsTrust#fromEnvironment()}
+     * (verified by default).
+     */
     public WSInterface(Map<String, String> wsConfig, WSCallback wsCallback) {
+        this(wsConfig, wsConfig.get("service_key") == null ? null : ClientSecurity.serviceKey(wsConfig.get("service_key")), wsCallback);
+    }
+
+    public WSInterface(Map<String, String> wsConfig, ClientSecurity security, WSCallback wsCallback) {
         this.wsConfig = wsConfig;
         this.wsCallback = wsCallback;
         this.sessionMap = Collections.synchronizedMap(new HashMap<>());
         this.host = wsConfig.get("host");
         this.port = Integer.parseInt(wsConfig.get("port"));
         this.apiPath = wsConfig.get("api_path");
-        this.serviceKey = wsConfig.get("service_key");
+        this.security = security;
         this.url = "wss://" + host + ":" + port + apiPath;
+    }
+
+    /** Why the last connection attempt failed, or null. */
+    public String getLastError() { return lastError; }
+
+    /** Record (and log once per distinct reason) why a connection failed; never includes a secret. */
+    void failed(Throwable cause) {
+        String why = describe(cause);
+        if (why == null) return;
+        if (!why.equals(lastError)) LOG.error("{}: {}", url, why);
+        else LOG.debug("{}: {}", url, why);
+        lastError = why;
+    }
+
+    private String describe(Throwable cause) {
+        Throwable t = cause;
+        java.security.cert.CertificateException cert = null;
+        WebSocketClientHandshakeException ws = null;
+        while (t != null) {
+            if (t instanceof java.security.cert.CertificateException && cert == null) cert = (java.security.cert.CertificateException) t;
+            if (t instanceof WebSocketClientHandshakeException) ws = (WebSocketClientHandshakeException) t;
+            if (t.getCause() == t) break;
+            t = t.getCause();
+        }
+        if (ws != null && ws.response() != null) {
+            int st = ws.response().status().code();
+            String what = st == 401 ? "refused the credentials" : st == 403 ? "refused this caller"
+                    : st == 429 ? "is refusing attempts from this address after repeated failures" : "refused the upgrade";
+            return "wsapi at " + host + ":" + port + " " + what + " (HTTP " + st + ") for " + (security == null ? "?" : security.credentials());
+        }
+        if (cert != null) {
+            String m = String.valueOf(cert.getMessage());
+            if (m.startsWith("wsapi certificate mismatch")) return m;
+            return "wsapi certificate for " + host + ":" + port + " is not trusted (" + security.trust() + "): " + m
+                    + ". Nothing was sent. Pin it (TlsTrust.pinned / -Dcresco.client.tls.fingerprint, the value in ws.fingerprint) or "
+                    + "trust ws.crt.pem as a CA file; both are in the wsapi plugin data directory on the agent.";
+        }
+        Throwable root = cause;
+        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+        if (root instanceof javax.net.ssl.SSLException) {
+            return "TLS with " + host + ":" + port + " failed (" + security.trust() + "): " + root.getMessage() + ". Nothing was sent.";
+        }
+        return root.getClass().getSimpleName() + ": " + root.getMessage();
     }
 
     public String getRegionName() { return regionName; }
@@ -110,7 +163,7 @@ public class WSInterface {
     public boolean connect() {
         if (!inConnect.get()) {
             inConnect.set(true);
-            if (wsConfig != null && host != null && apiPath != null && serviceKey != null) {
+            if (wsConfig != null && host != null && apiPath != null && security != null) {
                 try {
                     if (group == null) {
                         // TLS provider: default JDK (SSLEngine). -Dcresco.client.ssl_provider=OPENSSL
@@ -122,11 +175,7 @@ public class WSInterface {
                             provider = SslProvider.OPENSSL;
                             LOG.info("Cresco client TLS provider: OPENSSL (native BoringSSL)");
                         }
-                        sslContext = SslContextBuilder.forClient()
-                                .sslProvider(provider)
-                                .trustManager(InsecureTrustManagerFactory.INSTANCE)
-                                .protocols("TLSv1.3", "TLSv1.2")
-                                .build();
+                        sslContext = security.trust().sslContext(provider, url);
                         group = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
                     }
                     WsConn first = getSession(false);
@@ -139,11 +188,11 @@ public class WSInterface {
                     }
                 } catch (Throwable t) {
                     inConnect.set(false);
-                    LOG.warn("connect() failed for {}: {}", url, t.getMessage());
+                    failed(t);
                 }
             } else {
                 inConnect.set(false);
-                LOG.warn("connect(): wsConfig missing host/port/api_path/service_key");
+                LOG.warn("connect(): wsConfig missing host/port/api_path, or no credentials");
             }
         }
         return isActive.get();
@@ -206,7 +255,7 @@ public class WSInterface {
                                     .webSocketUri(URI.create(url))
                                     .version(WebSocketVersion.V13)
                                     .allowExtensions(false)
-                                    .customHeaders(new DefaultHttpHeaders().add("cresco_service_key", serviceKey))
+                                    .customHeaders(security.credentials().headers())
                                     .maxFramePayloadLength(MAX_MSG_BYTES)
                                     .build();
                             p.addLast(new WebSocketClientProtocolHandler(cfg));
@@ -214,15 +263,17 @@ public class WSInterface {
                             p.addLast(new NettyWsClientHandler(new WSPassThroughCallback(), handshakeLatch));
                         }
                     });
+            security.trust().warnIfInsecure(url);
             Channel channel = b.connect(host, port).sync().channel();
             if (!handshakeLatch.await(connectionTimeout, TimeUnit.SECONDS) || !channel.isActive()) {
-                LOG.error("createSession() handshake did not complete for {}", url);
+                if (lastError == null) LOG.error("createSession() handshake did not complete for {}", url);
                 channel.close();
                 return null;
             }
+            lastError = null;
             return new WsConn(channel);
         } catch (Exception ex) {
-            LOG.error("createSession() failed for {}: {}", url, ex.getMessage());
+            failed(ex);
             return null;
         }
     }
@@ -298,7 +349,7 @@ public class WSInterface {
 
     class WSPassThroughCallback implements WSCallback {
         @Override public void onConnect(WsConn sess) { isActive.set(true); inConnect.set(false); wsCallback.onConnect(sess); }
-        @Override public void onError(Throwable cause) { wsCallback.onError(cause); }
+        @Override public void onError(Throwable cause) { failed(cause); wsCallback.onError(cause); }
         @Override public void onMessage(WsConn sess, String msg) { wsCallback.onMessage(sess, msg); }
         @Override public void onMessage(byte[] b, int offset, int length) { wsCallback.onMessage(b, offset, length); }
         @Override public void onClose(int statusCode, String reason) {

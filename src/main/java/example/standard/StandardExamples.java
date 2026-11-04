@@ -37,9 +37,11 @@ public class StandardExamples {
 
     /** Create a connected client, or null if the connection failed. */
     static CrescoClient new_client() throws Exception {
-        CrescoClient client = new CrescoClient(HOST, PORT, SERVICE_KEY, false);
+        // the wsapi certificate is verified: set CRESCO_TLS_FINGERPRINT (the value in the wsapi plugin's ws.fingerprint)
+        // or CRESCO_TLS_CA_FILE (its ws.crt.pem), or use CrescoClient.builder(...).pinnedFingerprint(...)
+        CrescoClient client = new CrescoClient(HOST, PORT, SERVICE_KEY);
         if (!client.connect()) {
-            System.out.println("Failed to connect");
+            System.out.println("Failed to connect: " + client.last_error());
             return null;
         }
         return client;

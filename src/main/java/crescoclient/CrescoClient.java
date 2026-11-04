@@ -14,8 +14,10 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Java client for a Cresco mesh, connected through the wsapi plugin of any agent.
  *
- * <p>One client holds one authenticated control connection ({@code wss://host:port/api/apisocket}, service key
- * in the {@code cresco_service_key} header) and exposes the submodules as public fields:
+ * <p>One client holds one authenticated control connection ({@code wss://host:port/api/apisocket}) and exposes the
+ * submodules as public fields. Every connection it opens (control, dataplanes, log streams) verifies the wsapi
+ * certificate ({@link TlsTrust}: pinned fingerprint, CA file, or the JDK store) before it sends anything, and
+ * authenticates with the client's {@link Credentials} (per-user, or the service key):
  * <ul>
  *   <li>{@link #api} - identity of the wsapi endpoint and of the global controller</li>
  *   <li>{@link #globalcontroller} - pipelines, region/agent inventory, plugin lookup and repository, inventories</li>
@@ -41,7 +43,7 @@ public class CrescoClient {
 
     private String host;
     private int port;
-    private String service_key;
+    private final ClientSecurity security;
     private boolean verify_ssl;
     private MsgEventInterface msgEventInterface;
     public Messaging messaging;
@@ -59,40 +61,115 @@ public class CrescoClient {
     private int connectionTimeout = 5;
 
     /**
-     * Class object used to connect the client library to a Cresco websocket API endpoint
+     * A client that authenticates with the service key and verifies the wsapi certificate per
+     * {@link TlsTrust#fromEnvironment()}: {@code -Dcresco.client.tls.fingerprint} / {@code -Dcresco.client.tls.ca_file},
+     * then {@code CRESCO_TLS_FINGERPRINT} / {@code CRESCO_TLS_CA_FILE}, then the JDK trust store. Use {@link #builder}
+     * to pin a fingerprint, name a CA file or use a per-user credential in code.
      *
      * @param host the hostname or ip of the agent running a wsapi plugin
      * @param port the port of the listening wsapi plugin
      * @param service_key the security key used to allow communication with the wsapi
      */
     public CrescoClient(String host, int port, String service_key) {
-        this(host, port, service_key, false);
+        this(host, port, ClientSecurity.serviceKey(service_key));
     }
 
     /**
-     * Class object used to connect the client library to a Cresco websocket API endpoint
+     * A client that authenticates with the service key.
      *
      * @param host the hostname or ip of the agent running a wsapi plugin
      * @param port the port of the listening wsapi plugin
      * @param service_key the security key used to allow communication with the wsapi
-     * @param verify_ssl whether to verify SSL certificates
+     * @param verify_ssl true: verify the certificate as {@link #CrescoClient(String, int, String)} does; false: do not
+     *                   verify it (the service key then goes to whoever answers; every connection logs a WARNING)
      */
     public CrescoClient(String host, int port, String service_key, boolean verify_ssl) {
+        this(host, port, new ClientSecurity(verify_ssl ? TlsTrust.fromEnvironment() : TlsTrust.insecure(), Credentials.serviceKey(service_key)));
+    }
+
+    /**
+     * A client with explicit trust and credentials (see {@link #builder}).
+     *
+     * @param host     the hostname or ip of the agent running a wsapi plugin
+     * @param port     the port of the listening wsapi plugin
+     * @param security how every connection verifies the server certificate and what it authenticates with
+     */
+    public CrescoClient(String host, int port, ClientSecurity security) {
 
         // Jetty 12 logs via SLF4J; with the slf4j-jdk14 binding, keep Jetty quiet through JUL.
         java.util.logging.Logger.getLogger("org.eclipse.jetty").setLevel(java.util.logging.Level.WARNING);
 
         this.host = host;
         this.port = port;
-        this.service_key = service_key;
-        this.verify_ssl = verify_ssl;
-        this.msgEventInterface = new MsgEventInterface(host,port,service_key);
+        this.security = security;
+        this.verify_ssl = security.trust().verifies();
+        this.msgEventInterface = new MsgEventInterface(host, port, security);
         this.messaging = new Messaging(msgEventInterface);
         this.agents = new Agents(messaging);
         this.admin = new Admin(messaging);
         this.api = new API(msgEventInterface, messaging);
         this.globalcontroller = new GlobalController(messaging);
         this.stunnel = new Stunnel(messaging, globalcontroller);
+    }
+
+    /**
+     * Start building a client for {@code host:port}.
+     *
+     * <pre>{@code
+     * CrescoClient c = CrescoClient.builder("agent1", 8282)
+     *         .credentials("alice", password)                 // or .serviceKey(key)
+     *         .pinnedFingerprint("sha384:AB:CD:...")          // or .caFile(Path.of("ws.crt.pem")); default: fromEnvironment()
+     *         .build();
+     * }</pre>
+     *
+     * @param host the hostname or ip of the agent running a wsapi plugin
+     * @param port the port of the listening wsapi plugin
+     * @return a builder
+     */
+    public static Builder builder(String host, int port) {
+        return new Builder(host, port);
+    }
+
+    /** Builds a {@link CrescoClient}: credentials (required) and trust (default {@link TlsTrust#fromEnvironment()}). */
+    public static final class Builder {
+        private final String host;
+        private final int port;
+        private Credentials credentials;
+        private TlsTrust trust;
+        private boolean noHostnameCheck;
+
+        private Builder(String host, int port) {
+            this.host = host;
+            this.port = port;
+        }
+
+        /** Authenticate with the wsapi service key. */
+        public Builder serviceKey(String key) { this.credentials = Credentials.serviceKey(key); return this; }
+
+        /** Authenticate with a wsapi per-user credential. */
+        public Builder credentials(String user, String password) { this.credentials = Credentials.user(user, password); return this; }
+
+        /** Trust only a certificate with one of these SHA-256 / SHA-384 fingerprints (from ws.fingerprint). */
+        public Builder pinnedFingerprint(String... fingerprints) { this.trust = TlsTrust.pinned(fingerprints); return this; }
+
+        /** Trust the certificates in a PEM file (wsapi's ws.crt.pem, or a CA bundle); host name checked. */
+        public Builder caFile(java.nio.file.Path pem) { this.trust = TlsTrust.caFile(pem); return this; }
+
+        /** Use this trust. */
+        public Builder trust(TlsTrust t) { this.trust = t; return this; }
+
+        /** With a CA file or the JDK store, do not check the host name against the certificate. */
+        public Builder checkHostname(boolean check) { this.noHostnameCheck = !check; return this; }
+
+        /** Do not verify the certificate (credentials go to whoever answers; every connection logs a WARNING). */
+        public Builder insecure() { this.trust = TlsTrust.insecure(); return this; }
+
+        public CrescoClient build() {
+            if (credentials == null) throw new IllegalStateException("credentials needed: serviceKey(...) or credentials(user, password)");
+            TlsTrust t = trust != null ? trust : TlsTrust.fromEnvironment();
+            if (noHostnameCheck) t = t.withoutHostnameCheck();
+            return new CrescoClient(host, port, new ClientSecurity(t, credentials));
+        }
     }
 
     /**
@@ -159,12 +236,30 @@ public class CrescoClient {
     }
 
     /**
-     * Whether SSL certificate verification is requested for this client.
+     * Whether this client verifies the wsapi certificate.
      *
-     * @return true if SSL verification is enabled
+     * @return true unless built with {@link TlsTrust#insecure()} / {@code verify_ssl=false}
      */
     public boolean verify_ssl() {
         return verify_ssl;
+    }
+
+    /**
+     * Why the last connection attempt failed (an untrusted certificate, refused credentials, the network).
+     *
+     * @return the reason, or null
+     */
+    public String last_error() {
+        return msgEventInterface.getLastError();
+    }
+
+    /**
+     * The trust and credentials every connection of this client uses.
+     *
+     * @return the client's security settings
+     */
+    public ClientSecurity security() {
+        return security;
     }
 
     /**
@@ -198,8 +293,8 @@ public class CrescoClient {
             name = "logstreamer-" + (logstreamers.size() + 1);
         }
         LogStreamerInterface ls = (onMessageCallback == null)
-                ? new LogStreamerInterface(host, port, service_key, connectionTimeout)
-                : new LogStreamerInterface(host, port, service_key, onMessageCallback);
+                ? new LogStreamerInterface(host, port, security, connectionTimeout)
+                : new LogStreamerInterface(host, port, security, onMessageCallback);
         logstreamers.put(name, ls);
         return ls;
     }
@@ -247,8 +342,8 @@ public class CrescoClient {
      */
     public DataPlaneInterface get_dataplane(String stream_name, OnMessageCallback onMessageCallback) {
         DataPlaneInterface dp = (onMessageCallback == null)
-                ? new DataPlaneInterface(host, port, service_key, stream_name, connectionTimeout)
-                : new DataPlaneInterface(host, port, service_key, stream_name, onMessageCallback);
+                ? new DataPlaneInterface(host, port, security, stream_name, connectionTimeout)
+                : new DataPlaneInterface(host, port, security, stream_name, onMessageCallback);
         dataplanes.put(stream_name, dp);
         return dp;
     }

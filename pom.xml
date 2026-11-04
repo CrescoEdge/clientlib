@@ -29,8 +29,8 @@
         </dependency>
 
         <!-- Netty WebSocket CLIENT (replaces Jetty 12). netty-codec-http = HTTP/1.1 + WebSocket
-             client handlers; netty-handler = SslHandler + InsecureTrustManagerFactory (trust-all,
-             the server uses a self-signed cert). Shaded into the client jar. -->
+             client handlers; netty-handler = SslHandler. The server certificate is verified
+             (crescoclient.core.TlsTrust: pinned fingerprint, CA file or the JDK store). Shaded into the client jar. -->
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-http</artifactId>

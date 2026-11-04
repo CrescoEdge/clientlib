@@ -2,6 +2,7 @@
   "host": "localhost",
   "port": "8282",
   "service_key": "",
+  "tls_fingerprint": "",
   "example": "stunnel",
   "dataplane_query": "stream_name='example'",
   "sTunnel": {

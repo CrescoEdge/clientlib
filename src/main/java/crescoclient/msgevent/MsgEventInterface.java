@@ -41,15 +41,32 @@ public class MsgEventInterface {
      * @param serviceKey wsapi service key
      */
     public MsgEventInterface(String host, int port, String serviceKey) {
+        this(host, port, serviceKey == null ? null : crescoclient.core.ClientSecurity.serviceKey(serviceKey));
+    }
+
+    /**
+     * Create the control-channel transport with explicit trust and credentials.
+     *
+     * @param host     wsapi host
+     * @param port     wsapi port
+     * @param security how the server certificate is verified and what the connection authenticates with
+     */
+    public MsgEventInterface(String host, int port, crescoclient.core.ClientSecurity security) {
 
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
-        wsConfig.put("service_key", serviceKey);
         wsConfig.put("api_path","/api/apisocket");
 
-        wsInterface = new WSInterface(wsConfig, new WSMsgEventCallback());
+        wsInterface = new WSInterface(wsConfig, security, new WSMsgEventCallback());
 
+    }
+
+    /**
+     * @return why the last connection attempt failed (an untrusted certificate, refused credentials, the network), or null
+     */
+    public String getLastError() {
+        return wsInterface.getLastError();
     }
 
     /**

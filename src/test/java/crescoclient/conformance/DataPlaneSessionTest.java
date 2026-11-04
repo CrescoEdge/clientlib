@@ -55,6 +55,7 @@ public class DataPlaneSessionTest {
     private static EventLoopGroup group;
     private static Channel server;
     private static int port;
+    private static java.security.cert.X509Certificate serverCert;
     private static final AtomicInteger connections = new AtomicInteger();
     private static final AtomicInteger handshakes = new AtomicInteger();
     private static final Set<Channel> subscribers = ConcurrentHashMap.newKeySet();
@@ -73,6 +74,7 @@ public class DataPlaneSessionTest {
         assertEquals(0, p.waitFor(), "keytool failed");
         KeyStore store = KeyStore.getInstance("PKCS12");
         try (InputStream in = new FileInputStream(ks.toFile())) { store.load(in, "changeit".toCharArray()); }
+        serverCert = (java.security.cert.X509Certificate) store.getCertificate("s");
         KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         kmf.init(store, "changeit".toCharArray());
         SslContext ssl = SslContextBuilder.forServer(kmf).build();
@@ -123,7 +125,11 @@ public class DataPlaneSessionTest {
     void oneSendFromAnyThreadIsDeliveredOnceOnOneConnection() throws Exception {
         List<String> got = Collections.synchronizedList(new ArrayList<>());
         String cfg = "{\"ident_key\":\"stream_name\",\"ident_id\":\"dup\",\"io_type_key\":\"type\",\"input_id\":\"in\"}";
-        DataPlaneInterface dp = new DataPlaneInterface("127.0.0.1", port, "k", cfg, new OnMessageCallback() {
+        // the client verifies the server certificate: pin this test server's
+        crescoclient.core.ClientSecurity sec = new crescoclient.core.ClientSecurity(
+                crescoclient.core.TlsTrust.pinned(crescoclient.core.TlsTrust.fingerprint(serverCert, "SHA-384")),
+                crescoclient.core.Credentials.serviceKey("k"));
+        DataPlaneInterface dp = new DataPlaneInterface("127.0.0.1", port, sec, cfg, new OnMessageCallback() {
             @Override public void onMessage(String msg) { got.add(msg); }
             @Override public void onMessage(byte[] b, int offset, int length) { }
         });

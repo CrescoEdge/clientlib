@@ -1,8 +1,9 @@
 # Cresco Java Client (clientlib)
 
 Java client library for the **[Cresco](https://github.com/CrescoEdge/agent)** edge-computing framework. It connects
-to the [wsapi](https://github.com/CrescoEdge/wsapi) WebSocket plugin (`wss://host:8282`, authenticated with the
-`cresco_service_key` header) to control agents, deploy plugins, run pipelines, stream the
+to the [wsapi](https://github.com/CrescoEdge/wsapi) WebSocket plugin (`wss://host:8282`, the server certificate
+verified, authenticated with a per-user credential or the `cresco_service_key`) to control agents, deploy plugins, run
+pipelines, stream the
 data plane, and build stunnel tunnels.
 
 Part of the Cresco framework — see the **[agent repository](https://github.com/CrescoEdge/agent)** for the full
@@ -24,8 +25,12 @@ architecture and the [Python client](https://github.com/CrescoEdge/pycrescolib) 
 ```java
 import crescoclient.CrescoClient;
 
-// host/ip of an agent running the wsapi plugin, its port, and the wsapi service key
-CrescoClient client = new CrescoClient("localhost", 8282, "your-service-key", false);
+// host/ip of an agent running the wsapi plugin, its port, the wsapi service key, and the wsapi certificate's
+// fingerprint (from ws.fingerprint in the wsapi plugin data directory, or the agent log)
+CrescoClient client = CrescoClient.builder("localhost", 8282)
+        .serviceKey("your-service-key")
+        .pinnedFingerprint("sha384:AB:CD:...")
+        .build();
 
 if (client.connect()) {
     System.out.println(client.api.get_api_region_name() + " " + client.api.get_api_agent_name());
@@ -48,6 +53,7 @@ Every snippet below assumes a connected client. Runnable versions live in
 `CRESCO_HOST`, `CRESCO_PORT` and `CRESCO_SERVICE_KEY` from the environment.
 
 ```java
+// trusts per CRESCO_TLS_FINGERPRINT / CRESCO_TLS_CA_FILE (or -Dcresco.client.tls.*); see Security below
 CrescoClient client = new CrescoClient("localhost", 8282, System.getenv("CRESCO_SERVICE_KEY"));
 if (!client.connect()) throw new IllegalStateException("cannot reach wsapi");
 ```
@@ -134,7 +140,7 @@ client.stunnel.remove_tunnel("ssh", "global-region", "agent-a", "global-region",
 ```
 
 [`example.Launcher`](src/main/java/example/Launcher.java) runs the same flow for a list of tunnels read from a
-JSON config file (`cp config.example.json config.json`, set `service_key`, then
+JSON config file (`cp config.example.json config.json`, set `service_key` and `tls_fingerprint`, then
 `java -cp target/clientlib-1.3-SNAPSHOT.jar example.Launcher config.json`); with `"echo_test": true` it also pushes
 bytes through each tunnel.
 
@@ -174,7 +180,7 @@ Signatures are shown language-neutrally; names and behavior are identical in bot
 
 | Method | Description |
 |---|---|
-| `clientlib(host, port, service_key, verify_ssl=False)` | Create the client for a wsapi endpoint. |
+| `clientlib(host, port, service_key=None, verify_ssl=True, *, ca_file=None, fingerprint=None, check_hostname=True, user=None, password=None)` | Create the client for a wsapi endpoint (Java: `new CrescoClient(host, port, key[, verify_ssl])` or `CrescoClient.builder(host, port)...build()`; see [Security](#security-tls-trust-and-credentials)). |
 | `connect(block_on_connect=True) -> bool` | Connect to the wsapi endpoint; block until connected when `block_on_connect`. |
 | `connected() -> bool` | Return True if connected to the wsapi endpoint. |
 | `close() -> bool` | Close the client connection and all managed streams. |
@@ -320,14 +326,47 @@ All take `(is_rpc, message_event_type, message_payload, ...)` and return the rep
 | `connected()` | Whether the stream is connected. |
 | `close()` | Close the stream. |
 
-## SSL verification
+## Security: TLS trust and credentials
 
-By default SSL certificate verification is disabled (Cresco agents use self-signed certs). Enable it with the
-constructor flag:
+Every connection the client opens (the API socket, every dataplane and every log stream) verifies the wsapi server
+certificate before it sends anything, and authenticates with the same credentials.
+
+**Trusting the wsapi certificate.** wsapi makes its own certificate and publishes it in its plugin data directory on
+the agent (`<agent data>/plugin-data/<wsapi plugin id>/`): `ws.fingerprint` holds its SHA-384 and SHA-256
+fingerprints and `ws.crt.pem` the certificate; the agent log also shows the fingerprint at every start.
 
 ```java
-CrescoClient client = new CrescoClient("localhost", 8282, "your-service-key", true);
+CrescoClient c = CrescoClient.builder(host, 8282).serviceKey(key)
+        .pinnedFingerprint("sha384:AB:CD:...")      // pin it (SHA-384 or SHA-256; several allowed for a rotation)
+        .build();
+CrescoClient c = CrescoClient.builder(host, 8282).serviceKey(key)
+        .caFile(Path.of("ws.crt.pem"))              // or trust it (or a CA bundle) as a CA file; host name checked
+        .build();                                   //   (.checkHostname(false) to skip that)
 ```
+
+Without either, `new CrescoClient(host, port, key)` and the builder use `-Dcresco.client.tls.fingerprint` /
+`-Dcresco.client.tls.ca_file`, then `CRESCO_TLS_FINGERPRINT` / `CRESCO_TLS_CA_FILE`, then the JDK trust store (which
+does not trust a self-signed wsapi). A server that does not match fails the TLS handshake, so it receives nothing: no
+service key, no password. `connect()` returns false and `client.last_error()` (also `last_error()` on a dataplane or
+log stream) says why, e.g. `wsapi certificate mismatch for host:port: the pinned fingerprint [...] does not match the
+certificate the server presented (sha256:..., sha384:...). Nothing was sent.`
+
+`new CrescoClient(host, port, key, false)` (or `.insecure()`) turns verification off. The credentials then go to
+whoever answers, so every connection made that way logs a WARNING.
+
+**Credentials.** A per-user credential (created on the agent with wsapi's `CredentialTool`) or the legacy service key:
+
+```java
+CrescoClient c = CrescoClient.builder(host, 8282).credentials("alice", password).pinnedFingerprint(fp).build();
+```
+
+The user name and password go as HTTP Basic inside TLS. wsapi answers 401 for a bad credential, 403 for a user of
+another tenant, and 429 after repeated failures from one address; `last_error()` reports which.
+
+**Upgrading.** Earlier builds trusted any certificate. Now `new CrescoClient(host, port, key)` verifies: on the agent
+read `ws.fingerprint`, then on the client set `CRESCO_TLS_FINGERPRINT=sha384:...` (or
+`-Dcresco.client.tls.fingerprint=...`), or switch to the builder. Code that passed `verify_ssl=false` keeps working,
+with a WARNING per connection.
 
 ## Testing & cross-language parity
 

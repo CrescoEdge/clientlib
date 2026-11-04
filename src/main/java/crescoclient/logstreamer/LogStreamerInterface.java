@@ -52,15 +52,26 @@ public class LogStreamerInterface {
      * @param connectionTimeout connect timeout in seconds
      */
     public LogStreamerInterface(String host, int port, String serviceKey, int connectionTimeout) {
+        this(host, port, serviceKey == null ? null : crescoclient.core.ClientSecurity.serviceKey(serviceKey), connectionTimeout);
+    }
+
+    /**
+     * Create a log streamer that prints what it receives, with explicit trust and credentials.
+     *
+     * @param host              wsapi host
+     * @param port              wsapi port
+     * @param security          how the server certificate is verified and what the stream authenticates with
+     * @param connectionTimeout connect timeout in seconds
+     */
+    public LogStreamerInterface(String host, int port, crescoclient.core.ClientSecurity security, int connectionTimeout) {
         this.connectionTimeout = connectionTimeout;
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
-        wsConfig.put("service_key", serviceKey);
         wsConfig.put("api_path","/api/logstreamer");
 
         onMessageCallback = new LogPrinter();
-        wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
+        wsInterface = new WSInterface(wsConfig, security, new WSLogStreamerCallback());
         gson = new Gson();
     }
 
@@ -74,16 +85,27 @@ public class LogStreamerInterface {
      *                           ({@code onMessage(byte[], int, int)})
      */
     public LogStreamerInterface(String host, int port, String serviceKey, OnMessageCallback onMessageCallback) {
+        this(host, port, serviceKey == null ? null : crescoclient.core.ClientSecurity.serviceKey(serviceKey), onMessageCallback);
+    }
+
+    /**
+     * Create a log streamer with a message callback, with explicit trust and credentials.
+     *
+     * @param host       wsapi host
+     * @param port       wsapi port
+     * @param security   how the server certificate is verified and what the stream authenticates with
+     * @param onMessageCallback receives text and binary messages
+     */
+    public LogStreamerInterface(String host, int port, crescoclient.core.ClientSecurity security, OnMessageCallback onMessageCallback) {
 
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
-        wsConfig.put("service_key", serviceKey);
         wsConfig.put("api_path","/api/logstreamer");
 
         // was never assigned: every log line hit a NullPointerException instead of the caller's callback
         this.onMessageCallback = onMessageCallback;
-        wsInterface = new WSInterface(wsConfig, new WSLogStreamerCallback());
+        wsInterface = new WSInterface(wsConfig, security, new WSLogStreamerCallback());
         gson = new Gson();
     }
 
@@ -186,6 +208,15 @@ public class LogStreamerInterface {
      */
     public boolean connected() {
         return wsInterface.connected();
+    }
+
+    /**
+     * Why the stream's last connection attempt failed (an untrusted certificate, refused credentials, the network).
+     *
+     * @return the reason, or null
+     */
+    public String last_error() {
+        return wsInterface.getLastError();
     }
 
     /**
