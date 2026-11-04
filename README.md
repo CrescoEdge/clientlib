@@ -334,8 +334,8 @@ All take `(is_rpc, message_event_type, message_payload, ...)` and return the rep
 
 ## Security: TLS trust and credentials
 
-Every connection the client opens (the API socket, every dataplane and every log stream) uses the same trust setting
-and the same credentials. With a trust setting, the wsapi server certificate is verified before anything is sent.
+Every connection the client opens (the API socket, every dataplane and every log stream) verifies the wsapi server
+certificate before it sends anything, and authenticates with the same credentials.
 
 **Trusting the wsapi certificate.** wsapi makes its own certificate and publishes it in its plugin data directory on
 the agent (`<agent data>/plugin-data/<wsapi plugin id>/`): `ws.fingerprint` holds its SHA-384 and SHA-256
@@ -351,9 +351,8 @@ CrescoClient c = CrescoClient.builder(host, 8282).serviceKey(key)
 ```
 
 Or name the trust outside the code: `-Dcresco.client.tls.fingerprint` / `-Dcresco.client.tls.ca_file`, or
-`CRESCO_TLS_FINGERPRINT` / `CRESCO_TLS_CA_FILE`; `new CrescoClient(host, port, key)` and the builder then verify.
-`new CrescoClient(host, port, key, true)` with none of these uses the JDK trust store, which does not trust a
-self-signed wsapi. A server that does not match fails the TLS handshake, so it receives nothing: no service key, no
+`CRESCO_TLS_FINGERPRINT` / `CRESCO_TLS_CA_FILE`, which `new CrescoClient(host, port, key)` and the builder use. With none
+of these the JDK trust store applies, which does not trust a self-signed wsapi. A server that does not match fails the TLS handshake, so it receives nothing: no service key, no
 password. `connect()` returns false and `client.last_error()` (also `last_error()` on a dataplane or log stream) says
 why, e.g. `wsapi certificate mismatch for host:port: the pinned fingerprint [...] does not match the certificate the
 server presented (sha256:..., sha384:...). Nothing was sent.`
@@ -361,8 +360,6 @@ server presented (sha256:..., sha384:...). Nothing was sent.`
 `new CrescoClient(host, port, key, false)` (or `.insecure()`) turns verification off. The credentials then go to
 whoever answers, so every connection made that way logs a WARNING.
 
-A client whose code and environment name no trust is, for now, not verified, as before
-(`TlsTrust.VERIFY_BY_DEFAULT` is false). Set a trust now: verification will become the default.
 
 **Credentials.** A per-user credential (created on the agent with wsapi's `CredentialTool`) or the legacy service key:
 
@@ -371,7 +368,22 @@ CrescoClient c = CrescoClient.builder(host, 8282).credentials("alice", password)
 ```
 
 The user name and password go as HTTP Basic inside TLS. wsapi answers 401 for a bad credential, 403 for a user of
-another tenant, and 429 after repeated failures from one address; `last_error()` reports which.
+another tenant, and 429 after repeated failures from one address; `last_error()` reports which. After such a refusal
+(or an untrusted certificate) the client retries once a minute, not every second, so it does not lock out its host.
+
+**Upgrading: what to set.** Every connection is now verified by default, dataplanes and log streams included; earlier
+builds trusted any certificate. A client that names no trust stops connecting to a self-signed wsapi until it does
+(nothing is sent meanwhile; `last_error()` says what to set):
+
+1. On the agent, read the wsapi certificate's fingerprint:
+   `cat <agent data>/plugin-data/<wsapi plugin id>/ws.fingerprint` (or the `wsapi TLS certificate fingerprint` line
+   of the agent log).
+2. On every client host, either set `CRESCO_TLS_FINGERPRINT=sha384:...` or `-Dcresco.client.tls.fingerprint=...` (no
+   code change), or build the client with `.pinnedFingerprint("sha384:...")`, or copy `ws.crt.pem` and use
+   `.caFile(...)` / `CRESCO_TLS_CA_FILE`.
+
+Code that passed `verify_ssl=false` keeps working, unverified, with a WARNING on every connection; replace it with a
+pin.
 
 ## Dataplane messages and verified file downloads
 

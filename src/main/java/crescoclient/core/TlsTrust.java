@@ -59,10 +59,11 @@ public final class TlsTrust {
 
     /**
      * Whether a client whose code names no trust setting, with nothing in the environment, verifies the certificate
-     * (with the JDK store). False keeps the earlier behaviour for such clients (not verified, nothing logged) while the
-     * trust options are rolled out; an explicit {@link #insecure()} / {@code verify_ssl=false} always warns.
+     * (with the JDK store): true. Such a client fails against a self-signed wsapi until it is given a pin or CA file
+     * (earlier builds did not verify). An explicit {@link #insecure()} / {@code verify_ssl=false} turns verification off
+     * and warns on every connection.
      */
-    public static final boolean VERIFY_BY_DEFAULT = false;
+    public static final boolean VERIFY_BY_DEFAULT = true;
 
     /** A pin: the digest algorithm (SHA-256 or SHA-384) and the lowercase hex fingerprint. */
     static final class Pin {
