@@ -144,11 +144,44 @@ public class WSInterface {
         }
         Throwable root = cause;
         while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+        String refused = clientCertificateRefusal(cause);
+        if (refused != null) {
+            permanentFailure = true;
+            return "wsapi at " + host + ":" + port + " " + refused;
+        }
         permanentFailure = root instanceof javax.net.ssl.SSLException;
         if (root instanceof javax.net.ssl.SSLException) {
             return "TLS with " + host + ":" + port + " failed (" + security.trust() + "): " + root.getMessage() + ". Nothing was sent.";
         }
         return root.getClass().getSimpleName() + ": " + root.getMessage();
+    }
+
+    /** Why the server refused the TLS connection over the client certificate (its alert), or null. */
+    private String clientCertificateRefusal(Throwable cause) {
+        StringBuilder text = new StringBuilder();
+        for (Throwable t = cause; t != null && text.length() < 4000; t = t.getCause() == t ? null : t.getCause()) {
+            text.append(' ').append(t.getMessage());
+        }
+        String m = text.toString().toLowerCase(java.util.Locale.ROOT);
+        ClientCertificate mine = security == null ? null : security.clientCertificate();
+        if (m.contains("certificate_required")) {
+            return mine == null
+                    ? "requires a client certificate (its security_profile is production): give one (CrescoClient.builder(...).clientCertificate(...), "
+                    + "or CRESCO_TLS_CLIENT_CERT and CRESCO_TLS_CLIENT_KEY)"
+                    : "refused the " + mine;
+        }
+        for (String alert : new String[]{"bad_certificate", "unknown_ca", "certificate_unknown", "certificate_expired",
+                "certificate_revoked", "unsupported_certificate", "access_denied"}) {
+            if (m.contains(alert)) {
+                // wsapi (JDK TLS) answers a missing certificate with bad_certificate
+                if (mine == null) {
+                    return "requires a client certificate (its security_profile is production; TLS alert " + alert + "): give one "
+                            + "(CrescoClient.builder(...).clientCertificate(...), or CRESCO_TLS_CLIENT_CERT and CRESCO_TLS_CLIENT_KEY)";
+                }
+                return "did not accept the " + mine + " at TLS (" + alert + ": not issued by its client CA, expired, or unusable)";
+            }
+        }
+        return null;
     }
 
     public String getRegionName() { return regionName; }
@@ -190,7 +223,7 @@ public class WSInterface {
                             provider = SslProvider.OPENSSL;
                             LOG.info("Cresco client TLS provider: OPENSSL (native BoringSSL)");
                         }
-                        sslContext = security.trust().sslContext(provider, url);
+                        sslContext = security.sslContext(provider, url);
                         group = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
                     }
                     WsConn first = getSession(false);

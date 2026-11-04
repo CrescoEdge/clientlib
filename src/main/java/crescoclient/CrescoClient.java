@@ -146,6 +146,7 @@ public class CrescoClient {
         private Credentials credentials;
         private TlsTrust trust;
         private boolean noHostnameCheck;
+        private ClientCertificate clientCertificate;
 
         private Builder(String host, int port) {
             this.host = host;
@@ -176,12 +177,34 @@ public class CrescoClient {
         /** Do not verify the certificate (credentials go to whoever answers; every connection logs a WARNING). */
         public Builder insecure() { this.trust = TlsTrust.insecure(); return this; }
 
+        /**
+         * Present a client certificate on every connection (mutual TLS; wsapi's production profile requires one): a PEM
+         * certificate (then its chain) and its PEM PKCS#8 key ({@code password} null when the key is not encrypted).
+         * Without other credentials it is the only one.
+         */
+        public Builder clientCertificate(java.nio.file.Path certChain, java.nio.file.Path key, char[] password) {
+            this.clientCertificate = ClientCertificate.pem(certChain, key, password);
+            return this;
+        }
+
+        /** Present the client certificate of a PKCS12 file on every connection. */
+        public Builder clientCertificatePkcs12(java.nio.file.Path p12, char[] password) {
+            this.clientCertificate = ClientCertificate.pkcs12(p12, password);
+            return this;
+        }
+
+        /** Present this client certificate on every connection. */
+        public Builder clientCertificate(ClientCertificate c) { this.clientCertificate = c; return this; }
+
         public CrescoClient build() {
+            if (clientCertificate == null) clientCertificate = ClientCertificate.fromEnvironment();   // CRESCO_TLS_CLIENT_CERT
             if (credentials == null) credentials = Credentials.fromEnvironment();      // a tool's CRESCO_API_TOKEN
-            if (credentials == null) throw new IllegalStateException("credentials needed: token(...), serviceKey(...) or credentials(user, password), or CRESCO_API_TOKEN");
+            if (credentials == null && clientCertificate != null) credentials = Credentials.clientCertificate();
+            if (credentials == null) throw new IllegalStateException("credentials needed: a client certificate, token(...), serviceKey(...) "
+                    + "or credentials(user, password), or CRESCO_TLS_CLIENT_CERT / CRESCO_API_TOKEN");
             TlsTrust t = trust != null ? trust : TlsTrust.defaultTrust();
             if (noHostnameCheck) t = t.withoutHostnameCheck();
-            return new CrescoClient(host, port, new ClientSecurity(t, credentials));
+            return new CrescoClient(host, port, new ClientSecurity(t, credentials, clientCertificate));
         }
     }
 

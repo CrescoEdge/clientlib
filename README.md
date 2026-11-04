@@ -408,6 +408,28 @@ CrescoClient c = CrescoClient.builder(host, 8282).credentials("alice", password)
 and is revoked with `token revoke`. It has 256 random bits, so wsapi never throttles it per user: strangers guessing the
 user's password delay password logins from strangers' networks, never a tool's token. (Someone sharing your network
 or NAT can delay password logins from your addresses that are not yet known good; tokens are not affected.)
+**Client certificates (mutual TLS); the production profile.** An agent whose wsapi runs with
+`security_profile=production` accepts nothing but a client certificate issued by its operator's client CA, which names
+the caller (`cresco:api:<tenant>/<user>` and `cresco:role:<admin|user>` subject alternative names); passwords, the service
+key and (unless the agent allows them) API tokens are refused. Every connection (API socket, dataplanes, log streams)
+presents it:
+
+```java
+CrescoClient c = CrescoClient.builder(host, 8282)
+        .clientCertificate(Path.of("gaiakeep-chain.pem"), Path.of("gaiakeep.key"), null)   // PEM cert (+ chain), PKCS#8 key
+        // or .clientCertificatePkcs12(Path.of("gaiakeep.p12"), password)
+        .pinnedFingerprint(fp)
+        .build();
+```
+
+or `CRESCO_TLS_CLIENT_CERT`, `CRESCO_TLS_CLIENT_KEY`, `CRESCO_TLS_CLIENT_KEY_PASSWORD` (or the system properties
+`cresco.client.tls.client_cert`, `..._key`, `..._key_password`); a `.p12`/`.pfx` file, or one given without a key, is
+read as PKCS12. With a client certificate and no other credential, nothing else is sent; a token goes over it where the
+agent allows tokens. The files are read when the certificate is given (a wrong password fails there, with an
+`IllegalArgumentException`); `toString()` names the certificate, never the key or the password. A server that requires
+a certificate this client lacks, or refuses the one it presents, is reported by `last_error()` ("requires a client
+certificate", "did not accept the client certificate ...").
+
 **Revocation reaches open connections.** When a token is revoked or expires, or its user is removed, or a user's
 password, role or grants change, wsapi closes that credential's open connections within about 2 s (WebSocket 1008
 `credentials revoked or changed: authenticate again`). An RPC waiting on such a connection, or sent while no connection
