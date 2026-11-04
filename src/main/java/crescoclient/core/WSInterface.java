@@ -74,10 +74,7 @@ public class WSInterface {
     // why the last connection attempt failed (an untrusted certificate, refused credentials, the network), or null
     private volatile String lastError;
 
-    /**
-     * A transport that authenticates with {@code wsConfig.service_key} and trusts per {@link TlsTrust#fromEnvironment()}
-     * (verified by default).
-     */
+    /** A transport that authenticates with {@code wsConfig.service_key} and trusts per {@link TlsTrust#defaultTrust()}. */
     public WSInterface(Map<String, String> wsConfig, WSCallback wsCallback) {
         this(wsConfig, wsConfig.get("service_key") == null ? null : ClientSecurity.serviceKey(wsConfig.get("service_key")), wsCallback);
     }

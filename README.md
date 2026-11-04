@@ -53,7 +53,7 @@ Every snippet below assumes a connected client. Runnable versions live in
 `CRESCO_HOST`, `CRESCO_PORT` and `CRESCO_SERVICE_KEY` from the environment.
 
 ```java
-// trusts per CRESCO_TLS_FINGERPRINT / CRESCO_TLS_CA_FILE (or -Dcresco.client.tls.*); see Security below
+// verifies the wsapi certificate per CRESCO_TLS_FINGERPRINT / CRESCO_TLS_CA_FILE (or -Dcresco.client.tls.*); see Security
 CrescoClient client = new CrescoClient("localhost", 8282, System.getenv("CRESCO_SERVICE_KEY"));
 if (!client.connect()) throw new IllegalStateException("cannot reach wsapi");
 ```
@@ -328,8 +328,8 @@ All take `(is_rpc, message_event_type, message_payload, ...)` and return the rep
 
 ## Security: TLS trust and credentials
 
-Every connection the client opens (the API socket, every dataplane and every log stream) verifies the wsapi server
-certificate before it sends anything, and authenticates with the same credentials.
+Every connection the client opens (the API socket, every dataplane and every log stream) uses the same trust setting
+and the same credentials. With a trust setting, the wsapi server certificate is verified before anything is sent.
 
 **Trusting the wsapi certificate.** wsapi makes its own certificate and publishes it in its plugin data directory on
 the agent (`<agent data>/plugin-data/<wsapi plugin id>/`): `ws.fingerprint` holds its SHA-384 and SHA-256
@@ -344,15 +344,19 @@ CrescoClient c = CrescoClient.builder(host, 8282).serviceKey(key)
         .build();                                   //   (.checkHostname(false) to skip that)
 ```
 
-Without either, `new CrescoClient(host, port, key)` and the builder use `-Dcresco.client.tls.fingerprint` /
-`-Dcresco.client.tls.ca_file`, then `CRESCO_TLS_FINGERPRINT` / `CRESCO_TLS_CA_FILE`, then the JDK trust store (which
-does not trust a self-signed wsapi). A server that does not match fails the TLS handshake, so it receives nothing: no
-service key, no password. `connect()` returns false and `client.last_error()` (also `last_error()` on a dataplane or
-log stream) says why, e.g. `wsapi certificate mismatch for host:port: the pinned fingerprint [...] does not match the
-certificate the server presented (sha256:..., sha384:...). Nothing was sent.`
+Or name the trust outside the code: `-Dcresco.client.tls.fingerprint` / `-Dcresco.client.tls.ca_file`, or
+`CRESCO_TLS_FINGERPRINT` / `CRESCO_TLS_CA_FILE`; `new CrescoClient(host, port, key)` and the builder then verify.
+`new CrescoClient(host, port, key, true)` with none of these uses the JDK trust store, which does not trust a
+self-signed wsapi. A server that does not match fails the TLS handshake, so it receives nothing: no service key, no
+password. `connect()` returns false and `client.last_error()` (also `last_error()` on a dataplane or log stream) says
+why, e.g. `wsapi certificate mismatch for host:port: the pinned fingerprint [...] does not match the certificate the
+server presented (sha256:..., sha384:...). Nothing was sent.`
 
 `new CrescoClient(host, port, key, false)` (or `.insecure()`) turns verification off. The credentials then go to
 whoever answers, so every connection made that way logs a WARNING.
+
+A client whose code and environment name no trust is, for now, not verified, as before
+(`TlsTrust.VERIFY_BY_DEFAULT` is false). Set a trust now: verification will become the default.
 
 **Credentials.** A per-user credential (created on the agent with wsapi's `CredentialTool`) or the legacy service key:
 
@@ -362,11 +366,6 @@ CrescoClient c = CrescoClient.builder(host, 8282).credentials("alice", password)
 
 The user name and password go as HTTP Basic inside TLS. wsapi answers 401 for a bad credential, 403 for a user of
 another tenant, and 429 after repeated failures from one address; `last_error()` reports which.
-
-**Upgrading.** Earlier builds trusted any certificate. Now `new CrescoClient(host, port, key)` verifies: on the agent
-read `ws.fingerprint`, then on the client set `CRESCO_TLS_FINGERPRINT=sha384:...` (or
-`-Dcresco.client.tls.fingerprint=...`), or switch to the builder. Code that passed `verify_ssl=false` keeps working,
-with a WARNING per connection.
 
 ## Testing & cross-language parity
 

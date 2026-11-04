@@ -12,9 +12,9 @@ public final class ClientSecurity {
         this.credentials = credentials;
     }
 
-    /** The service key, trusting per {@link TlsTrust#fromEnvironment()} (verified by default). */
+    /** The service key, trusting per {@link TlsTrust#defaultTrust()}. */
     public static ClientSecurity serviceKey(String key) {
-        return new ClientSecurity(TlsTrust.fromEnvironment(), Credentials.serviceKey(key));
+        return new ClientSecurity(TlsTrust.defaultTrust(), Credentials.serviceKey(key));
     }
 
     public TlsTrust trust() { return trust; }

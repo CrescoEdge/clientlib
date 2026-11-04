@@ -171,7 +171,14 @@ class ClientTlsTest {
             System.clearProperty(TlsTrust.PROP_CA_FILE);
         }
         if (System.getenv(TlsTrust.ENV_FINGERPRINT) == null && System.getenv(TlsTrust.ENV_CA_FILE) == null) {
-            assertEquals(TlsTrust.Mode.SYSTEM, TlsTrust.fromEnvironment().mode(), "verified by default");
+            assertEquals(TlsTrust.Mode.SYSTEM, TlsTrust.fromEnvironment().mode(), "verify_ssl=true with nothing named: the JDK store");
+            assertEquals(TlsTrust.VERIFY_BY_DEFAULT ? TlsTrust.Mode.SYSTEM : TlsTrust.Mode.INSECURE, TlsTrust.defaultTrust().mode());
+        }
+        System.setProperty(TlsTrust.PROP_FINGERPRINT, TlsTrust.fingerprint(good.cert, "SHA-384"));
+        try {
+            assertEquals(TlsTrust.Mode.PINNED, TlsTrust.defaultTrust().mode(), "a trust named in the environment always verifies");
+        } finally {
+            System.clearProperty(TlsTrust.PROP_FINGERPRINT);
         }
     }
 
@@ -296,10 +303,35 @@ class ClientTlsTest {
     }
 
     @Test
-    void theOldConstructorsVerifyByDefaultAndVerifySslFalseIsTheExplicitOptOut() throws Exception {
+    void theOldConstructorsFollowTheDefaultVerifySslTrueVerifiesAndFalseWarns() throws Exception {
+        List<String> warnings = Collections.synchronizedList(new ArrayList<>());
+        Logger jul = Logger.getLogger("crescoclient.core.TlsTrust");
+        Handler h = new Handler() {
+            @Override public void publish(LogRecord r) { if (r.getMessage() != null && r.getMessage().contains("DISABLED")) warnings.add(r.getMessage()); }
+            @Override public void flush() { }
+            @Override public void close() { }
+        };
+        jul.addHandler(h);
+        boolean envTrust = System.getenv(TlsTrust.ENV_FINGERPRINT) != null || System.getenv(TlsTrust.ENV_CA_FILE) != null;
         try (TestServer srv = new TestServer(good, 0)) {
-            if (System.getenv(TlsTrust.ENV_FINGERPRINT) == null && System.getenv(TlsTrust.ENV_CA_FILE) == null) {
-                CrescoClient strict = new CrescoClient("localhost", srv.port, "sk-test");
+            if (!envTrust) {
+                CrescoClient plain = new CrescoClient("localhost", srv.port, "sk-test");
+                try {
+                    assertEquals(TlsTrust.VERIFY_BY_DEFAULT, plain.verify_ssl());
+                    if (TlsTrust.VERIFY_BY_DEFAULT) {
+                        plain.connect(false);
+                        assertTrue(waitFor(() -> plain.last_error() != null, 10_000));
+                        assertFalse(plain.connected());
+                    } else {
+                        assertTrue(plain.connect(), "no trust named: not verified, as before");
+                        assertTrue(warnings.isEmpty(), "the unverified default is silent: " + warnings);
+                    }
+                } finally {
+                    plain.close();
+                }
+
+                CrescoClient strict = new CrescoClient("localhost", srv.port, "sk-test", true);
+                int before = srv.requests.size();
                 try {
                     assertTrue(strict.verify_ssl());
                     strict.connect(false);
@@ -309,7 +341,7 @@ class ClientTlsTest {
                 } finally {
                     strict.close();
                 }
-                assertEquals(List.of(), srv.requests);
+                assertEquals(before, srv.requests.size(), "verify_ssl=true sent nothing to an untrusted server");
             }
             CrescoClient loose = new CrescoClient("localhost", srv.port, "sk-test", false);
             try {
@@ -318,6 +350,9 @@ class ClientTlsTest {
             } finally {
                 loose.close();
             }
+            assertFalse(warnings.isEmpty(), "verify_ssl=false warns");
+        } finally {
+            jul.removeHandler(h);
         }
         assertThrows(IllegalStateException.class, () -> CrescoClient.builder("h", 1).build());
     }

@@ -61,10 +61,11 @@ public class CrescoClient {
     private int connectionTimeout = 5;
 
     /**
-     * A client that authenticates with the service key and verifies the wsapi certificate per
-     * {@link TlsTrust#fromEnvironment()}: {@code -Dcresco.client.tls.fingerprint} / {@code -Dcresco.client.tls.ca_file},
-     * then {@code CRESCO_TLS_FINGERPRINT} / {@code CRESCO_TLS_CA_FILE}, then the JDK trust store. Use {@link #builder}
-     * to pin a fingerprint, name a CA file or use a per-user credential in code.
+     * A client that authenticates with the service key and trusts per {@link TlsTrust#defaultTrust()}: the wsapi
+     * certificate is verified when {@code -Dcresco.client.tls.fingerprint} / {@code -Dcresco.client.tls.ca_file} or
+     * {@code CRESCO_TLS_FINGERPRINT} / {@code CRESCO_TLS_CA_FILE} names a trust, otherwise per
+     * {@link TlsTrust#VERIFY_BY_DEFAULT}. Use {@link #builder} to pin a fingerprint, name a CA file or use a per-user
+     * credential in code.
      *
      * @param host the hostname or ip of the agent running a wsapi plugin
      * @param port the port of the listening wsapi plugin
@@ -80,8 +81,9 @@ public class CrescoClient {
      * @param host the hostname or ip of the agent running a wsapi plugin
      * @param port the port of the listening wsapi plugin
      * @param service_key the security key used to allow communication with the wsapi
-     * @param verify_ssl true: verify the certificate as {@link #CrescoClient(String, int, String)} does; false: do not
-     *                   verify it (the service key then goes to whoever answers; every connection logs a WARNING)
+     * @param verify_ssl true: verify the certificate ({@link TlsTrust#fromEnvironment()}: the pin or CA file named in
+     *                   the environment, else the JDK store); false: do not verify it (the service key then goes to
+     *                   whoever answers; every connection logs a WARNING)
      */
     public CrescoClient(String host, int port, String service_key, boolean verify_ssl) {
         this(host, port, new ClientSecurity(verify_ssl ? TlsTrust.fromEnvironment() : TlsTrust.insecure(), Credentials.serviceKey(service_key)));
@@ -118,7 +120,7 @@ public class CrescoClient {
      * <pre>{@code
      * CrescoClient c = CrescoClient.builder("agent1", 8282)
      *         .credentials("alice", password)                 // or .serviceKey(key)
-     *         .pinnedFingerprint("sha384:AB:CD:...")          // or .caFile(Path.of("ws.crt.pem")); default: fromEnvironment()
+     *         .pinnedFingerprint("sha384:AB:CD:...")          // or .caFile(Path.of("ws.crt.pem")); default: defaultTrust()
      *         .build();
      * }</pre>
      *
@@ -130,7 +132,7 @@ public class CrescoClient {
         return new Builder(host, port);
     }
 
-    /** Builds a {@link CrescoClient}: credentials (required) and trust (default {@link TlsTrust#fromEnvironment()}). */
+    /** Builds a {@link CrescoClient}: credentials (required) and trust (default {@link TlsTrust#defaultTrust()}). */
     public static final class Builder {
         private final String host;
         private final int port;
@@ -166,7 +168,7 @@ public class CrescoClient {
 
         public CrescoClient build() {
             if (credentials == null) throw new IllegalStateException("credentials needed: serviceKey(...) or credentials(user, password)");
-            TlsTrust t = trust != null ? trust : TlsTrust.fromEnvironment();
+            TlsTrust t = trust != null ? trust : TlsTrust.defaultTrust();
             if (noHostnameCheck) t = t.withoutHostnameCheck();
             return new CrescoClient(host, port, new ClientSecurity(t, credentials));
         }

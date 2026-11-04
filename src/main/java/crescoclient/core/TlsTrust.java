@@ -40,6 +40,8 @@ import java.util.Locale;
  * </ul>
  * {@link #fromEnvironment()} reads {@code -Dcresco.client.tls.fingerprint} / {@code -Dcresco.client.tls.ca_file}, then
  * {@code CRESCO_TLS_FINGERPRINT} / {@code CRESCO_TLS_CA_FILE}, then falls back to {@link #system()}.
+ * {@link #defaultTrust()} is what a client gets when its code names no trust: the same, except that with nothing in the
+ * environment it follows {@link #VERIFY_BY_DEFAULT}.
  *
  * <p>A server that does not pass fails its TLS handshake, so nothing (no service key, no password) is sent to it. The
  * failure message says what was expected and what the server presented.
@@ -54,6 +56,13 @@ public final class TlsTrust {
     public static final String ENV_CA_FILE = "CRESCO_TLS_CA_FILE";
 
     public enum Mode { SYSTEM, CA_FILE, PINNED, INSECURE }
+
+    /**
+     * Whether a client whose code names no trust setting, with nothing in the environment, verifies the certificate
+     * (with the JDK store). False keeps the earlier behaviour for such clients (not verified, nothing logged) while the
+     * trust options are rolled out; an explicit {@link #insecure()} / {@code verify_ssl=false} always warns.
+     */
+    public static final boolean VERIFY_BY_DEFAULT = false;
 
     /** A pin: the digest algorithm (SHA-256 or SHA-384) and the lowercase hex fingerprint. */
     static final class Pin {
@@ -73,12 +82,19 @@ public final class TlsTrust {
     private final Path caFile;
     private final List<Pin> pins;
     private final boolean checkHostname;
+    // an unverified default (no trust named, VERIFY_BY_DEFAULT false) does not warn; an explicit insecure() does
+    private final boolean silent;
 
     private TlsTrust(Mode mode, Path caFile, List<Pin> pins, boolean checkHostname) {
+        this(mode, caFile, pins, checkHostname, false);
+    }
+
+    private TlsTrust(Mode mode, Path caFile, List<Pin> pins, boolean checkHostname, boolean silent) {
         this.mode = mode;
         this.caFile = caFile;
         this.pins = pins;
         this.checkHostname = checkHostname;
+        this.silent = silent;
     }
 
     /** The JDK trust store, host name checked. */
@@ -132,8 +148,19 @@ public final class TlsTrust {
         return system();
     }
 
+    /**
+     * The trust for a client whose code names none: {@code -Dcresco.client.tls.*} or {@code CRESCO_TLS_*} when set,
+     * else the JDK store when {@link #VERIFY_BY_DEFAULT}, else no verification (without a warning).
+     */
+    public static TlsTrust defaultTrust() {
+        String fp = first(System.getProperty(PROP_FINGERPRINT), System.getenv(ENV_FINGERPRINT));
+        String ca = first(System.getProperty(PROP_CA_FILE), System.getenv(ENV_CA_FILE));
+        if (fp != null || ca != null || VERIFY_BY_DEFAULT) return fromEnvironment();
+        return new TlsTrust(Mode.INSECURE, null, Collections.emptyList(), false, true);
+    }
+
     /** The same trust without the host name check (CA file and system modes). */
-    public TlsTrust withoutHostnameCheck() { return new TlsTrust(mode, caFile, pins, false); }
+    public TlsTrust withoutHostnameCheck() { return new TlsTrust(mode, caFile, pins, false, silent); }
 
     public Mode mode() { return mode; }
 
@@ -144,7 +171,7 @@ public final class TlsTrust {
         switch (mode) {
             case PINNED: return "pinned " + pins;
             case CA_FILE: return "CA file " + caFile + (checkHostname ? "" : " (no host name check)");
-            case INSECURE: return "INSECURE (no verification)";
+            case INSECURE: return silent ? "not verified (no trust setting given)" : "INSECURE (no verification)";
             default: return "system trust store" + (checkHostname ? "" : " (no host name check)");
         }
     }
@@ -212,7 +239,7 @@ public final class TlsTrust {
 
     /** Logged for every connection made without verification. */
     void warnIfInsecure(String url) {
-        if (mode == Mode.INSECURE) {
+        if (mode == Mode.INSECURE && !silent) {
             LOG.warn("TLS certificate verification is DISABLED for {} (verify_ssl=false / TlsTrust.insecure()): the credentials go to "
                     + "whoever answers. Pin the wsapi certificate (ws.fingerprint) or trust ws.crt.pem as a CA file.", url);
         }
