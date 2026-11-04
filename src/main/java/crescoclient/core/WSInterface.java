@@ -272,6 +272,8 @@ public class WSInterface {
                                     .version(WebSocketVersion.V13)
                                     .allowExtensions(false)
                                     .customHeaders(security.credentials().headers())
+                                    // not a browser: no Origin (wsapi refuses browser Origins other than its own)
+                                    .generateOriginHeader(false)
                                     .maxFramePayloadLength(MAX_MSG_BYTES)
                                     .build();
                             p.addLast(new WebSocketClientProtocolHandler(cfg));

@@ -137,16 +137,34 @@ public final class TlsTrust {
         return new TlsTrust(Mode.PINNED, null, Collections.unmodifiableList(out), false);
     }
 
-    /** No verification (logs a WARNING on every connection). */
-    public static TlsTrust insecure() { return new TlsTrust(Mode.INSECURE, null, Collections.emptyList(), false); }
+    /**
+     * No verification (logs a WARNING on every connection), unless an operator named a trust outside the code
+     * ({@code -Dcresco.client.tls.*} or {@code CRESCO_TLS_*}): that always wins, with a WARNING, so code that turned
+     * verification off never sends the credentials to an impostor the operator's pin would have refused.
+     */
+    public static TlsTrust insecure() {
+        TlsTrust operator = operatorTrust();
+        if (operator != null) {
+            LOG.warn("verify_ssl=false / TlsTrust.insecure() is overridden: an operator trust is configured ({}), "
+                    + "so the wsapi certificate is verified against it", operator);
+            return operator;
+        }
+        return new TlsTrust(Mode.INSECURE, null, Collections.emptyList(), false);
+    }
 
-    /** {@code -Dcresco.client.tls.*}, then {@code CRESCO_TLS_*}, then {@link #system()}. */
-    public static TlsTrust fromEnvironment() {
+    /** The trust an operator named outside the code ({@code -Dcresco.client.tls.*}, then {@code CRESCO_TLS_*}), or null. */
+    static TlsTrust operatorTrust() {
         String fp = first(System.getProperty(PROP_FINGERPRINT), System.getenv(ENV_FINGERPRINT));
         if (fp != null) return pinned(fp);
         String ca = first(System.getProperty(PROP_CA_FILE), System.getenv(ENV_CA_FILE));
         if (ca != null) return caFile(Paths.get(ca));
-        return system();
+        return null;
+    }
+
+    /** {@code -Dcresco.client.tls.*}, then {@code CRESCO_TLS_*}, then {@link #system()}. */
+    public static TlsTrust fromEnvironment() {
+        TlsTrust operator = operatorTrust();
+        return operator != null ? operator : system();
     }
 
     /**

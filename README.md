@@ -358,7 +358,8 @@ why, e.g. `wsapi certificate mismatch for host:port: the pinned fingerprint [...
 server presented (sha256:..., sha384:...). Nothing was sent.`
 
 `new CrescoClient(host, port, key, false)` (or `.insecure()`) turns verification off. The credentials then go to
-whoever answers, so every connection made that way logs a WARNING.
+whoever answers, so every connection made that way logs a WARNING. It never drops an operator's pin: with
+`-Dcresco.client.tls.*` or `CRESCO_TLS_*` set, the certificate is verified against it anyway (WARNING "is overridden").
 
 
 **Credentials.** A per-user credential (created on the agent with wsapi's `CredentialTool`) or the legacy service key:

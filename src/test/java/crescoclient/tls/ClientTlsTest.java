@@ -261,6 +261,27 @@ class ClientTlsTest {
     }
 
     @Test
+    void anOperatorPinWinsOverVerifySslFalseAndTheClientSendsNoOrigin() throws Exception {
+        System.setProperty(TlsTrust.PROP_FINGERPRINT, TlsTrust.fingerprint(good.cert, "SHA-384"));
+        try {
+            assertEquals(TlsTrust.Mode.PINNED, TlsTrust.insecure().mode());
+            try (TestServer srv = new TestServer(good, 0)) {
+                CrescoClient c = new CrescoClient("localhost", srv.port, "sk-test", false);
+                try {
+                    assertTrue(c.verify_ssl());
+                    assertTrue(c.connect(), c.last_error());
+                } finally {
+                    c.close();
+                }
+                assertNull(srv.requests.get(0).get("origin"), "the Java client sends no Origin");
+            }
+        } finally {
+            System.clearProperty(TlsTrust.PROP_FINGERPRINT);
+        }
+        assertEquals(TlsTrust.Mode.INSECURE, TlsTrust.insecure().mode(), "without an operator trust, insecure is insecure");
+    }
+
+    @Test
     void credentialAndPinValidation() {
         assertThrows(IllegalArgumentException.class, () -> Credentials.user("a:b", "pw"));
         assertThrows(IllegalArgumentException.class, () -> Credentials.user("alice", ""));

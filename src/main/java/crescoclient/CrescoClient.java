@@ -85,7 +85,8 @@ public class CrescoClient {
      * @param service_key the security key used to allow communication with the wsapi
      * @param verify_ssl true: verify the certificate ({@link TlsTrust#fromEnvironment()}: the pin or CA file named in
      *                   the environment, else the JDK store); false: do not verify it (the service key then goes to
-     *                   whoever answers; every connection logs a WARNING)
+     *                   whoever answers; every connection logs a WARNING), unless an operator pin or CA file is set in
+     *                   the environment or system properties, which always wins
      */
     public CrescoClient(String host, int port, String service_key, boolean verify_ssl) {
         this(host, port, new ClientSecurity(verify_ssl ? TlsTrust.fromEnvironment() : TlsTrust.insecure(), Credentials.serviceKey(service_key)));
