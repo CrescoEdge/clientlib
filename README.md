@@ -202,7 +202,7 @@ Signatures are shown language-neutrally; names and behavior are identical in bot
 | `connected() -> bool` | Return True if connected to the wsapi endpoint. |
 | `close() -> bool` | Close the client connection and all managed streams. |
 | `connection()` | Return the underlying websocket transport interface. |
-| `get_dataplane(stream_name, callback=None)` | Get (and register) a dataplane for the given stream query. |
+| `get_dataplane(stream_name, callback=None, envelope=False)` | Get (and register) a dataplane for the given stream query; with `envelope` (a JSON stream config) each message arrives with its verified writer (`onEnvelope(Envelope)` in Java, `Envelope` objects in Python). |
 | `close_dataplane(stream_name) -> bool` | Close and deregister the named dataplane. |
 | `get_active_dataplanes() -> list` | List names of currently registered dataplanes. |
 | `get_logstreamer(name=None, callback=None)` | Get (and register) a logstreamer. |
@@ -419,6 +419,15 @@ Code that passed `verify_ssl=false` keeps working, unverified, with a WARNING on
 pin.
 
 ## Dataplane messages and verified file downloads
+
+- **Who wrote a message.** `client.get_dataplane(config, callback, true)` (a JSON stream config) asks wsapi for envelope
+  frames: the callback's `onEnvelope(Envelope e)` receives each message with `e.kind()` (`text`, `map`,
+  `transfer_end`, `bytes`, or `raw`), `e.writer()`, `e.writerRoles()`, `e.writerTenant()`, `e.properties()` and
+  `e.text()` / `e.map()` / `e.data()`. The writer is `api:<tenant>/<user>` for an API client's message
+  (`e.fromApiUser()`), else the bundle or controller its controller stamped (`plugin:<tenant>/<region>/<agent>/<plugin
+  id>`); null for `raw` (not verified). A client acting on an `execution_log` checks that the executor's plugin wrote it,
+  since any member of a stream can send text that looks like one. Without overriding `onEnvelope`, envelopes are handed
+  to `onMessage` as before.
 
 - A dataplane `MapMessage` (for example the executor's `execution_log` with a process's exit code, and its
   `delete_exchange`) arrives as a text message holding the JSON object of its entries.

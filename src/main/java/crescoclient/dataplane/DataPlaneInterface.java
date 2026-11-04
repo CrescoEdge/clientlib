@@ -106,6 +106,7 @@ public class DataPlaneInterface {
      */
     public DataPlaneInterface(String host, int port, crescoclient.core.ClientSecurity security, String streamQuery, int connectionTimeout) {
         refuseStdin(streamQuery);
+        this.envelope = Envelope.requested(streamQuery);
         this.connectionTimeout = connectionTimeout;
 
         wsConfig = new HashMap<>();
@@ -146,6 +147,7 @@ public class DataPlaneInterface {
      */
     public DataPlaneInterface(String host, int port, crescoclient.core.ClientSecurity security, String streamQuery, OnMessageCallback onMessageCallback) {
         refuseStdin(streamQuery);
+        this.envelope = Envelope.requested(streamQuery);
         wsConfig = new HashMap<>();
         wsConfig.put("host",host);
         wsConfig.put("port", String.valueOf(port));
@@ -161,6 +163,12 @@ public class DataPlaneInterface {
 
         gson = new Gson();
     }
+
+    /** The stream asked for envelope frames: the callback's {@link OnMessageCallback#onEnvelope} receives each message. */
+    private final boolean envelope;
+
+    /** True when this stream asked for envelope frames. */
+    public boolean isEnvelope() { return envelope; }
 
     /**
      * Why a stream config would write a process's stdin, or null. A JSON config with {@code io_type_key} {@code type}
@@ -496,6 +504,8 @@ public class DataPlaneInterface {
                 if(handshakePending) {
                     handshakePending = false;
                     onActivationReply(gson.fromJson(msg, type));
+                } else if (envelope) {
+                    onMessageCallback.onEnvelope(Envelope.parseText(msg));
                 } else {
                     onMessageCallback.onMessage(msg);
                 }
@@ -509,7 +519,8 @@ public class DataPlaneInterface {
         @Override
         public void onMessage(byte[] b, int offset, int length) {
             bytesReceived += length;
-            onMessageCallback.onMessage(b, offset, length);
+            if (envelope) onMessageCallback.onEnvelope(Envelope.parseBytes(b, offset, length));
+            else onMessageCallback.onMessage(b, offset, length);
         }
 
         @Override

@@ -312,6 +312,36 @@ class ClientTlsTest {
     }
 
     @Test
+    void aDataplaneWithEnvelopeHandsTheCallbackEnvelopes() throws Exception {
+        String pin = TlsTrust.fingerprint(good.cert, "SHA-384");
+        java.util.List<crescoclient.dataplane.Envelope> got = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        crescoclient.core.OnMessageCallback cb = new crescoclient.core.OnMessageCallback() {
+            @Override public void onMessage(String msg) { fail("envelope mode delivers envelopes"); }
+            @Override public void onMessage(byte[] b, int offset, int length) { fail("envelope mode delivers envelopes"); }
+            @Override public void onEnvelope(crescoclient.dataplane.Envelope e) { got.add(e); }
+        };
+        try (TestServer srv = new TestServer(good, 0)) {                      // echoes dataplane text frames
+            CrescoClient c = CrescoClient.builder("localhost", srv.port).credentials("alice", "pw-1").pinnedFingerprint(pin).build();
+            try {
+                assertTrue(c.connect(), c.last_error());
+                DataPlaneInterface dp = c.get_dataplane("{\"ident_key\":\"stream_name\",\"ident_id\":\"job-1\"}", cb, true);
+                assertTrue(dp.isEnvelope());
+                dp.connect();
+                assertTrue(waitFor(dp::connected, 10_000), dp.last_error());
+                dp.send("{\"kind\":\"map\",\"writer\":\"plugin:t/r/a/plugin-3\",\"properties\":{},\"map\":{\"cmd\":\"execution_log\"}}");
+                dp.send("not an envelope");
+                assertTrue(waitFor(() -> got.size() >= 2, 10_000), String.valueOf(got));
+            } finally {
+                c.close();
+            }
+        }
+        assertEquals("map", got.get(0).kind());
+        assertEquals("plugin:t/r/a/plugin-3", got.get(0).writer());
+        assertEquals("raw", got.get(1).kind());
+        assertNull(got.get(1).writer());
+    }
+
+    @Test
     void theClientItsDataplaneAndLogStreamAllVerifyAndRefuseAMismatchedServer() throws Exception {
         String pin = TlsTrust.fingerprint(good.cert, "SHA-384");
         try (TestServer srv = new TestServer(good, 0)) {

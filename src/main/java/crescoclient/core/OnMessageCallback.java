@@ -21,4 +21,19 @@ public interface OnMessageCallback {
      * @param reason the broker's reason
      */
     default void onSubscriptionRefused(String reason) { }
+
+    /**
+     * A message of a stream opened with envelope frames, with its verified writer. By default it is handed on as before:
+     * the text (a map's entries as JSON), or the payload.
+     */
+    default void onEnvelope(crescoclient.dataplane.Envelope e) {
+        if (e.data() != null) {
+            byte[] d = e.data();
+            onMessage(d, 0, d.length);
+        } else if (e.map() != null) {
+            onMessage(new com.google.gson.Gson().toJson(e.map()));
+        } else {
+            onMessage(e.text());
+        }
+    }
 }

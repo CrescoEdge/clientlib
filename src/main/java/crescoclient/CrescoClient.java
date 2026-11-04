@@ -349,6 +349,15 @@ public class CrescoClient {
      * @param onMessageCallback optional message callback
      * @return the dataplane
      */
+    /**
+     * Get (and register) a dataplane; with {@code envelope} (a JSON stream config) wsapi sends envelope frames and the
+     * callback's {@link OnMessageCallback#onEnvelope} receives each message with its verified writer
+     * ({@link crescoclient.dataplane.Envelope}).
+     */
+    public DataPlaneInterface get_dataplane(String stream_name, OnMessageCallback onMessageCallback, boolean envelope) {
+        return get_dataplane(envelope ? crescoclient.dataplane.Envelope.withEnvelope(stream_name) : stream_name, onMessageCallback);
+    }
+
     public DataPlaneInterface get_dataplane(String stream_name, OnMessageCallback onMessageCallback) {
         DataPlaneInterface dp = (onMessageCallback == null)
                 ? new DataPlaneInterface(host, port, security, stream_name, connectionTimeout)
