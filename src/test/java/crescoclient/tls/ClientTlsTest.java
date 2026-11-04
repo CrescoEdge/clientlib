@@ -284,6 +284,27 @@ class ClientTlsTest {
     }
 
     @Test
+    void anApiTokenGoesAsBearerAndNeverShows() throws Exception {
+        String presented = String.join("", "cwt1_", "0123456789abcdef", ".", "Q".repeat(43));   // test-only
+        Credentials c = Credentials.token(presented);
+        assertEquals("Bearer " + presented, c.headers().get("authorization"));
+        assertFalse(c.toString().contains("QQQQ"));
+        assertTrue(c.toString().contains("0123456789abcdef"));
+        try (TestServer srv = new TestServer(good, 0)) {
+            CrescoClient cl = CrescoClient.builder("localhost", srv.port).token(presented)
+                    .pinnedFingerprint(TlsTrust.fingerprint(good.cert, "SHA-384")).build();
+            try {
+                assertTrue(cl.connect(), cl.last_error());
+                assertEquals("Bearer " + presented, srv.requests.get(0).get("authorization"));
+                assertNull(srv.requests.get(0).get("cresco_service_key"));
+            } finally {
+                cl.close();
+            }
+        }
+        assertThrows(IllegalArgumentException.class, () -> Credentials.token("cwt1_short"));
+    }
+
+    @Test
     void credentialAndPinValidation() {
         assertThrows(IllegalArgumentException.class, () -> Credentials.user("a:b", "pw"));
         assertThrows(IllegalArgumentException.class, () -> Credentials.user("alice", ""));

@@ -394,12 +394,19 @@ whoever answers, so every connection made that way logs a WARNING. It never drop
 `-Dcresco.client.tls.*` or `CRESCO_TLS_*` set, the certificate is verified against it anyway (WARNING "is overridden").
 
 
-**Credentials.** A per-user credential (created on the agent with wsapi's `CredentialTool`) or the legacy service key:
+**Credentials.** An API token, a per-user password (both made on the agent with wsapi's `CredentialTool`), or the
+legacy service key:
 
 ```java
+CrescoClient tool = CrescoClient.builder(host, 8282).token(System.getenv("CRESCO_API_TOKEN")).pinnedFingerprint(fp).build();
+CrescoClient same = CrescoClient.builder(host, 8282).pinnedFingerprint(fp).build();     // CRESCO_API_TOKEN when unset
 CrescoClient c = CrescoClient.builder(host, 8282).credentials("alice", password).pinnedFingerprint(fp).build();
 ```
 
+**Tools and automation should use an API token.** `CredentialTool token add <ws.users> <user> [--expires-days N]
+[--label L]` on the agent prints it once (`cwt1_...`); it acts as its user, goes as `Authorization: Bearer` inside TLS,
+and is revoked with `token revoke`. It has 256 random bits, so wsapi never throttles it per user: strangers guessing the
+user's password delay password logins from new places, never a tool's token.
 The user name and password go as HTTP Basic inside TLS. wsapi answers 401 for a bad credential, 403 for a user of
 another tenant, and 429 after repeated failures from one address; `last_error()` reports which. After such a refusal
 (or an untrusted certificate) the client retries once a minute, not every second, so it does not lock out its host.

@@ -158,6 +158,9 @@ public class CrescoClient {
         /** Authenticate with a wsapi per-user credential. */
         public Builder credentials(String user, String password) { this.credentials = Credentials.user(user, password); return this; }
 
+        /** Authenticate with a wsapi API token (what tools and automation should use; never throttled per user). */
+        public Builder token(String token) { this.credentials = Credentials.token(token); return this; }
+
         /** Trust only a certificate with one of these SHA-256 / SHA-384 fingerprints (from ws.fingerprint). */
         public Builder pinnedFingerprint(String... fingerprints) { this.trust = TlsTrust.pinned(fingerprints); return this; }
 
@@ -174,7 +177,8 @@ public class CrescoClient {
         public Builder insecure() { this.trust = TlsTrust.insecure(); return this; }
 
         public CrescoClient build() {
-            if (credentials == null) throw new IllegalStateException("credentials needed: serviceKey(...) or credentials(user, password)");
+            if (credentials == null) credentials = Credentials.fromEnvironment();      // a tool's CRESCO_API_TOKEN
+            if (credentials == null) throw new IllegalStateException("credentials needed: token(...), serviceKey(...) or credentials(user, password), or CRESCO_API_TOKEN");
             TlsTrust t = trust != null ? trust : TlsTrust.defaultTrust();
             if (noHostnameCheck) t = t.withoutHostnameCheck();
             return new CrescoClient(host, port, new ClientSecurity(t, credentials));
