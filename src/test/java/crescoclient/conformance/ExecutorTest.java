@@ -167,6 +167,15 @@ public class ExecutorTest {
     }
 
     @Test
+    void aRefusalAtTheAgentsDoorIsReportedWithItsStatus() {
+        reply("status_code", "403", "status_desc", "unauthorized: write_stdin needs admin or infra (caller api:t/bob[user])");
+        Executor.StdinWriteException e = assertThrows(Executor.StdinWriteException.class,
+                () -> executor.write_stdin("R", "A", "job-1", "x", true, false, "pe"));
+        assertEquals("403", e.getStatus());
+        assertTrue(e.getMessage().contains("needs admin or infra"), e.getMessage());
+    }
+
+    @Test
     void thePluginIsFoundByName() {
         Map<String, Object> list = new HashMap<>();
         list.put("plugins", List.of(Map.of("pluginname", "io.cresco.example", "name", "plugin-other"),

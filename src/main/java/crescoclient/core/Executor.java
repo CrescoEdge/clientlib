@@ -184,7 +184,9 @@ public class Executor {
             if (close && last) p.put("close_stdin", "true");
             Map<String, String> r = messaging.global_plugin_msgevent(true, "EXEC", p, region, agent, pid);
             if (r == null || !STATUS_WRITTEN.equals(r.get("status"))) {
-                throw new StdinWriteException(stream_name, r == null ? null : r.get("status"), r == null ? null : r.get("refusal"),
+                // the executor answers status/refusal; the agent's action authorization, before it, status_code 403
+                String status = r == null ? null : (r.get("status") != null ? r.get("status") : r.get("status_code"));
+                throw new StdinWriteException(stream_name, status, r == null ? null : r.get("refusal"),
                         r == null ? null : r.get("status_desc"), written);
             }
             written += chunk.length;
