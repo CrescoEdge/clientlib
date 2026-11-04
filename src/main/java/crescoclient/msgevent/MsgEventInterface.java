@@ -31,6 +31,8 @@ public class MsgEventInterface {
     // reply (and send()'s stale-reply clear() nuked other threads' in-flight replies).
     private final Map<Channel, LinkedBlockingQueue<String>> replyQueues = new ConcurrentHashMap<>();
     private final ThreadLocal<LinkedBlockingQueue<String>> currentReplyQueue = new ThreadLocal<>();
+    /** The connection this thread's last request went out on; null when it could not be sent (no connection). */
+    private final ThreadLocal<Channel> currentChannel = new ThreadLocal<>();
     private int rpcTimeoutSeconds = 30;
 
     /**
@@ -100,9 +102,17 @@ public class MsgEventInterface {
             WsConn session = wsInterface.getSession(true);
             // drop queues for connections that no longer exist so the map cannot grow unbounded
             replyQueues.keySet().removeIf(ch -> !ch.isOpen());
+            if (session == null) {
+                // no connection (refused credentials, a revoked token, the network): recv() answers at once, saying why
+                currentReplyQueue.set(null);
+                currentChannel.set(null);
+                LOG.warn("MsgEvent send(): no connection to wsapi: " + wsInterface.getLastError());
+                return;
+            }
             LinkedBlockingQueue<String> queue =
                     replyQueues.computeIfAbsent(session.channel(), ch -> new LinkedBlockingQueue<>());
             currentReplyQueue.set(queue);
+            currentChannel.set(session.channel());
             if (isRPC) {
                 // Drop any stale reply from a previously timed-out RPC on THIS connection so
                 // recv() returns the response to THIS request.
@@ -115,26 +125,54 @@ public class MsgEventInterface {
     }
 
     /**
-     * Wait for the reply to the last RPC this thread sent (up to 30 s).
+     * Wait for the reply to the last RPC this thread sent (up to 30 s). When the request could not be sent (no connection)
+     * or its connection closes before the reply (wsapi closes the connections of a revoked or changed credential with
+     * 1008), it answers at once with a failure reply in wsapi's own form ({@code status}, {@code status_desc},
+     * {@code error}) that names why, instead of waiting out the timeout.
      *
-     * @return the reply JSON, or null on timeout
+     * @return the reply JSON, a failure reply as above, or null on timeout
      */
     public String recv() {
         try {
             LinkedBlockingQueue<String> queue = currentReplyQueue.get();
-            if (queue == null) {
+            Channel ch = currentChannel.get();
+            if (queue == null || ch == null) {
+                if (ch == null && queue == null && wsInterface.getLastError() != null) {
+                    return failure("503", "no connection to wsapi: " + wsInterface.getLastError());
+                }
                 LOG.warn("MsgEvent recv() called with no prior send() on this thread");
                 return null;
             }
-            String response = queue.poll(rpcTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
-            if (response == null) {
-                LOG.warn("MsgEvent recv() timed out after " + rpcTimeoutSeconds + "s");
+            long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(rpcTimeoutSeconds);
+            while (true) {
+                long left = deadline - System.nanoTime();
+                if (left <= 0) break;
+                String response = queue.poll(Math.min(left, java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(100)),
+                        java.util.concurrent.TimeUnit.NANOSECONDS);
+                if (response != null) return response;
+                if (!ch.isActive()) {
+                    response = queue.poll();                  // a reply that arrived just before the close
+                    if (response != null) return response;
+                    String why = wsInterface.getLastError();
+                    return failure("499", "the connection to wsapi closed before the reply" + (why == null ? "" : ": " + why));
+                }
             }
-            return response;
+            LOG.warn("MsgEvent recv() timed out after " + rpcTimeoutSeconds + "s");
+            return null;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return null;
         }
+    }
+
+    /** A failure reply in the form wsapi uses for refused requests. */
+    private static String failure(String status, String why) {
+        LOG.warn("MsgEvent RPC failed: " + why);
+        Map<String, String> r = new HashMap<>();
+        r.put("status", status);
+        r.put("status_desc", why);
+        r.put("error", why);
+        return new com.google.gson.Gson().toJson(r);
     }
 
     /**

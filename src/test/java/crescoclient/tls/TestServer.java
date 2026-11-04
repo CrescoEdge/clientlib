@@ -44,7 +44,8 @@ import java.util.Map;
  * A local wss server standing in for wsapi. Records every HTTP upgrade request (its headers) that reaches it: a client
  * that refused the certificate must leave this empty, which proves no credential was sent. /api/apisocket echoes;
  * /api/dataplane answers the stream handshake; /api/logstreamer sends its activation status. {@code rejectStatus}
- * answers every upgrade with that HTTP status instead.
+ * answers every upgrade with that HTTP status instead. A text frame naming {@code "close_with_1008"} is not answered: the
+ * connection is closed with 1008, as wsapi closes the connections of a revoked credential.
  */
 final class TestServer implements AutoCloseable {
 
@@ -158,6 +159,12 @@ final class TestServer implements AutoCloseable {
             if ("/api/dataplane".equals(path) && !handshaken) {
                 handshaken = true;
                 ctx.writeAndFlush(new TextWebSocketFrame("{\"status_code\":\"10\",\"status_desc\":\"Listener Active\"}"));
+                return;
+            }
+            if (frame.text().contains("\"close_with_1008\"")) {
+                // as wsapi closes a connection whose credential was revoked; the request gets no reply
+                ctx.writeAndFlush(new io.netty.handler.codec.http.websocketx.CloseWebSocketFrame(1008,
+                        "credentials revoked or changed: authenticate again")).addListener(ChannelFutureListener.CLOSE);
                 return;
             }
             ctx.writeAndFlush(new TextWebSocketFrame(frame.text()));

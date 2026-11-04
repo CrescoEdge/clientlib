@@ -281,6 +281,8 @@ public class WSInterface {
                                     // not a browser: no Origin (wsapi refuses browser Origins other than its own)
                                     .generateOriginHeader(false)
                                     .maxFramePayloadLength(MAX_MSG_BYTES)
+                                    // the server's close frame (its status and reason) reaches NettyWsClientHandler
+                                    .handleCloseFrames(false)
                                     .build();
                             p.addLast(new WebSocketClientProtocolHandler(cfg));
                             p.addLast(new WebSocketFrameAggregator(MAX_MSG_BYTES));
@@ -383,6 +385,12 @@ public class WSInterface {
             // dropped everything from then on
             isActive.set(false);
             inConnect.set(false);
+            if (statusCode != 1000 && statusCode != 1006 && statusCode != 1005) {
+                // the server closed it on purpose, e.g. wsapi's 1008 "credentials revoked or changed: authenticate again"
+                String why = "wsapi closed the connection (" + statusCode + (reason == null || reason.isEmpty() ? "" : " " + reason) + ")";
+                if (!why.equals(lastError)) LOG.warn("{}: {}", url, why);
+                lastError = why;
+            }
             wsCallback.onClose(statusCode, reason);
         }
     }

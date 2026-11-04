@@ -406,7 +406,15 @@ CrescoClient c = CrescoClient.builder(host, 8282).credentials("alice", password)
 **Tools and automation should use an API token.** `CredentialTool token add <ws.users> <user> [--expires-days N]
 [--label L]` on the agent prints it once (`cwt1_...`); it acts as its user, goes as `Authorization: Bearer` inside TLS,
 and is revoked with `token revoke`. It has 256 random bits, so wsapi never throttles it per user: strangers guessing the
-user's password delay password logins from new places, never a tool's token.
+user's password delay password logins from strangers' networks, never a tool's token. (Someone sharing your network
+or NAT can delay password logins from your addresses that are not yet known good; tokens are not affected.)
+**Revocation reaches open connections.** When a token is revoked or expires, or its user is removed, or a user's
+password, role or grants change, wsapi closes that credential's open connections within about 2 s (WebSocket 1008
+`credentials revoked or changed: authenticate again`). An RPC waiting on such a connection, or sent while no connection
+can be made, fails at once with a reply in wsapi's failure form (`status` 499 or 503, `status_desc` and `error` naming
+the server's reason; the query methods throw `CrescoQueryException` with it), and `last_error()` says
+`wsapi closed the connection (1008 ...)`; the next call reconnects, and a revoked credential is then refused (401). It
+used to wait out the 30 s RPC timeout and return nothing.
 The user name and password go as HTTP Basic inside TLS. wsapi answers 401 for a bad credential, 403 for a user of
 another tenant, and 429 after repeated failures from one address; `last_error()` reports which. After such a refusal
 (or an untrusted certificate) the client retries once a minute, not every second, so it does not lock out its host.
