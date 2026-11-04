@@ -125,8 +125,14 @@ public class WSInterface {
             int st = ws.response().status().code();
             permanentFailure = st == 401 || st == 403 || st == 429;
             String what = st == 401 ? "refused the credentials" : st == 403 ? "refused this caller"
-                    : st == 429 ? "is refusing attempts from this address after repeated failures" : "refused the upgrade";
-            return "wsapi at " + host + ":" + port + " " + what + " (HTTP " + st + ") for " + (security == null ? "?" : security.credentials());
+                    : st == 429 ? "refused this connection for now" : "refused the upgrade";
+            // wsapi puts its reason in the status line too (Netty's exception keeps no body): a lockout, the auth queue
+            // or the per-user connection cap
+            String reason = ws.response().status().reasonPhrase();
+            String standard = io.netty.handler.codec.http.HttpResponseStatus.valueOf(st).reasonPhrase();
+            String why = reason == null || reason.equals(standard) ? ""
+                    : ": " + reason.replaceAll("[^\\x20-\\x7e]", "?").substring(0, Math.min(200, reason.length()));
+            return "wsapi at " + host + ":" + port + " " + what + " (HTTP " + st + why + ") for " + (security == null ? "?" : security.credentials());
         }
         if (cert != null) {
             permanentFailure = true;

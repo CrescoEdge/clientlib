@@ -230,6 +230,8 @@ class ClientTlsTest {
                     String e = ws.getLastError();
                     assertNotNull(e);
                     assertTrue(e.contains("HTTP " + status) && e.contains("alice") && !e.contains("secret-pw"), e);
+                    assertTrue(e.contains("server says no"), "the server's own reason is quoted: " + e);
+                    assertFalse(e.contains("repeated failures"), "a 429 is not always a lockout: " + e);
                 } finally { ws.close(); }
             }
         }

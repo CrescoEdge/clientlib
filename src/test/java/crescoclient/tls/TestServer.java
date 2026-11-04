@@ -130,7 +130,7 @@ final class TestServer implements AutoCloseable {
                 ctx.channel().attr(PATH).set(path);
                 if (reject > 0) {
                     req.release();
-                    DefaultFullHttpResponse r = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.valueOf(reject),
+                    DefaultFullHttpResponse r = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, new HttpResponseStatus(reject, "server says no"),
                             Unpooled.copiedBuffer("refused", StandardCharsets.UTF_8));
                     r.headers().set("Content-Length", r.content().readableBytes());
                     ctx.writeAndFlush(r).addListener(ChannelFutureListener.CLOSE);
